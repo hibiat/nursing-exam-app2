@@ -1,0 +1,21 @@
+name: nursing_exam_app2
+version: 0.0.1
+description: MVP for nursing exam study app
+publish_to: "none"
+
+environment:
+  sdk: ">=3.2.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  firebase_core: ^2.27.0
+  firebase_auth: ^4.17.0
+  cloud_firestore: ^4.15.0
+  firebase_storage: ^11.6.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/taxonomy_general.json
+    - assets/taxonomy_required.json
