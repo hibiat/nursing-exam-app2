@@ -1,11 +1,190 @@
 {
+  "schema_version": "1.0",
+  "mode": "general",
   "domains": [
     {
-      "id": "gen-01",
-      "name": "人体の構造と機能",
+      "domain_id": "general.anatomy_function",
+      "name_ja": "人体の構造と機能",
+      "order": 1,
       "subdomains": [
-        {"id": "gen-01-01", "name": "解剖学"},
-        {"id": "gen-01-02", "name": "生理学"}
+        { "subdomain_id": "general.anatomy_function.01", "name_ja": "細胞と組織", "order": 1 },
+        { "subdomain_id": "general.anatomy_function.02", "name_ja": "生体リズムと内部環境の恒常性", "order": 2 },
+        { "subdomain_id": "general.anatomy_function.03", "name_ja": "神経系", "order": 3 },
+        { "subdomain_id": "general.anatomy_function.04", "name_ja": "運動器系", "order": 4 },
+        { "subdomain_id": "general.anatomy_function.05", "name_ja": "感覚器系", "order": 5 },
+        { "subdomain_id": "general.anatomy_function.06", "name_ja": "循環器系", "order": 6 },
+        { "subdomain_id": "general.anatomy_function.07", "name_ja": "血液", "order": 7 },
+        { "subdomain_id": "general.anatomy_function.08", "name_ja": "体液", "order": 8 },
+        { "subdomain_id": "general.anatomy_function.09", "name_ja": "生体の防御機構", "order": 9 },
+        { "subdomain_id": "general.anatomy_function.10", "name_ja": "呼吸器系", "order": 10 },
+        { "subdomain_id": "general.anatomy_function.11", "name_ja": "消化器系", "order": 11 },
+        { "subdomain_id": "general.anatomy_function.12", "name_ja": "代謝系", "order": 12 },
+        { "subdomain_id": "general.anatomy_function.13", "name_ja": "泌尿器系", "order": 13 },
+        { "subdomain_id": "general.anatomy_function.14", "name_ja": "体温調節", "order": 14 },
+        { "subdomain_id": "general.anatomy_function.15", "name_ja": "内分泌系", "order": 15 },
+        { "subdomain_id": "general.anatomy_function.16", "name_ja": "生殖器系", "order": 16 }
+      ]
+    },
+    {
+      "domain_id": "general.disease_recovery",
+      "name_ja": "疾病の成り立ちと回復の促進",
+      "order": 2,
+      "subdomains": [
+        { "subdomain_id": "general.disease_recovery.01", "name_ja": "健康の維持増進", "order": 1 },
+        { "subdomain_id": "general.disease_recovery.02", "name_ja": "疾病の成立と疾病からの回復", "order": 2 },
+        { "subdomain_id": "general.disease_recovery.03", "name_ja": "基本的な病因", "order": 3 },
+        { "subdomain_id": "general.disease_recovery.04", "name_ja": "疾病に対する医療", "order": 4 }
+      ]
+    },
+    {
+      "domain_id": "general.health_support_social_security",
+      "name_ja": "健康支援と社会保障制度",
+      "order": 3,
+      "subdomains": [
+        { "subdomain_id": "general.health_support_social_security.01", "name_ja": "社会・家族機能と生活基盤", "order": 1 },
+        { "subdomain_id": "general.health_support_social_security.02", "name_ja": "社会の中の集団", "order": 2 },
+        { "subdomain_id": "general.health_support_social_security.03", "name_ja": "社会保障制度の基本", "order": 3 },
+        { "subdomain_id": "general.health_support_social_security.04", "name_ja": "社会保障制度の基本", "order": 4 },
+        { "subdomain_id": "general.health_support_social_security.05", "name_ja": "社会福祉の基本", "order": 5 },
+        { "subdomain_id": "general.health_support_social_security.06", "name_ja": "健康と公衆衛生", "order": 6 },
+        { "subdomain_id": "general.health_support_social_security.07", "name_ja": "感染症と対策", "order": 7 },
+        { "subdomain_id": "general.health_support_social_security.08", "name_ja": "生活環境への対策", "order": 8 },
+        { "subdomain_id": "general.health_support_social_security.09", "name_ja": "保健活動の基盤と制度", "order": 9 },
+        { "subdomain_id": "general.health_support_social_security.10", "name_ja": "生活者の健康増進", "order": 10 },
+        { "subdomain_id": "general.health_support_social_security.11", "name_ja": "人々の健康を支える職種に関する法や施策", "order": 11 }
+      ]
+    },
+    {
+      "domain_id": "general.basic_nursing",
+      "name_ja": "基礎看護学",
+      "order": 4,
+      "subdomains": [
+        { "subdomain_id": "general.basic_nursing.01", "name_ja": "看護の基本となる概念", "order": 1 },
+        { "subdomain_id": "general.basic_nursing.02", "name_ja": "看護の展開", "order": 2 },
+        { "subdomain_id": "general.basic_nursing.03", "name_ja": "看護における基本技術", "order": 3 },
+        { "subdomain_id": "general.basic_nursing.04", "name_ja": "日常生活援助技術", "order": 4 },
+        { "subdomain_id": "general.basic_nursing.05", "name_ja": "診療に伴う看護技術", "order": 5 }
+      ]
+    },
+    {
+      "domain_id": "general.adult_nursing",
+      "name_ja": "成人看護学",
+      "order": 5,
+      "subdomains": [
+        { "subdomain_id": "general.adult_nursing.01", "name_ja": "成人の特徴と生活", "order": 1 },
+        { "subdomain_id": "general.adult_nursing.02", "name_ja": "健康の保持・増進や疾病の予防", "order": 2 },
+        { "subdomain_id": "general.adult_nursing.03", "name_ja": "急性期の看護", "order": 3 },
+        { "subdomain_id": "general.adult_nursing.04", "name_ja": "救急看護、クリティカルケア", "order": 4 },
+        { "subdomain_id": "general.adult_nursing.05", "name_ja": "周術期看護", "order": 5 },
+        { "subdomain_id": "general.adult_nursing.06", "name_ja": "慢性疾患の看護", "order": 6 },
+        { "subdomain_id": "general.adult_nursing.07", "name_ja": "リハビリテーション看護", "order": 7 },
+        { "subdomain_id": "general.adult_nursing.08", "name_ja": "がん看護", "order": 8 },
+        { "subdomain_id": "general.adult_nursing.09", "name_ja": "終末期看護", "order": 9 },
+        { "subdomain_id": "general.adult_nursing.10", "name_ja": "呼吸器系", "order": 10 },
+        { "subdomain_id": "general.adult_nursing.11", "name_ja": "循環器系", "order": 11 },
+        { "subdomain_id": "general.adult_nursing.12", "name_ja": "消化器系", "order": 12 },
+        { "subdomain_id": "general.adult_nursing.13", "name_ja": "栄養代謝系", "order": 13 },
+        { "subdomain_id": "general.adult_nursing.14", "name_ja": "内部環境", "order": 14 },
+        { "subdomain_id": "general.adult_nursing.15", "name_ja": "内分泌系", "order": 15 },
+        { "subdomain_id": "general.adult_nursing.16", "name_ja": "血液・免疫系", "order": 16 },
+        { "subdomain_id": "general.adult_nursing.17", "name_ja": "脳・神経系", "order": 17 },
+        { "subdomain_id": "general.adult_nursing.18", "name_ja": "感覚器系", "order": 18 },
+        { "subdomain_id": "general.adult_nursing.19", "name_ja": "運動器系", "order": 19 },
+        { "subdomain_id": "general.adult_nursing.20", "name_ja": "泌尿器系", "order": 20 },
+        { "subdomain_id": "general.adult_nursing.21", "name_ja": "性・生殖器系", "order": 21 }
+      ]
+    },
+    {
+      "domain_id": "general.geriatric_nursing",
+      "name_ja": "老年看護学",
+      "order": 6,
+      "subdomains": [
+        { "subdomain_id": "general.geriatric_nursing.01", "name_ja": "高齢者の理解の基本", "order": 1 },
+        { "subdomain_id": "general.geriatric_nursing.02", "name_ja": "高齢者の生活", "order": 2 },
+        { "subdomain_id": "general.geriatric_nursing.03", "name_ja": "高齢者の健康", "order": 3 },
+        { "subdomain_id": "general.geriatric_nursing.04", "name_ja": "老年看護の基本", "order": 4 },
+        { "subdomain_id": "general.geriatric_nursing.05", "name_ja": "高齢者の生活を支える看護", "order": 5 },
+        { "subdomain_id": "general.geriatric_nursing.06", "name_ja": "健康状態や受療状況に応じた高齢者の看護", "order": 6 },
+        { "subdomain_id": "general.geriatric_nursing.07", "name_ja": "高齢者に特有な症候・疾患・障害と看護", "order": 7 },
+        { "subdomain_id": "general.geriatric_nursing.08", "name_ja": "治療・介護を必要とする高齢者の家族の看護", "order": 8 },
+        { "subdomain_id": "general.geriatric_nursing.09", "name_ja": "多様な場で生活する高齢者を支える看護", "order": 9 },
+        { "subdomain_id": "general.geriatric_nursing.10", "name_ja": "状況設定問題", "order": 10 }
+      ]
+    },
+    {
+      "domain_id": "general.pediatric_nursing",
+      "name_ja": "小児看護学",
+      "order": 7,
+      "subdomains": [
+        { "subdomain_id": "general.pediatric_nursing.01", "name_ja": "子どもと家族を取り巻く環境", "order": 1 },
+        { "subdomain_id": "general.pediatric_nursing.02", "name_ja": "子どもの成長・発達", "order": 2 },
+        { "subdomain_id": "general.pediatric_nursing.03", "name_ja": "小児各期における健康増進のための看護", "order": 3 },
+        { "subdomain_id": "general.pediatric_nursing.04", "name_ja": "病気や診療・入院が子どもと家族に与える影響", "order": 4 },
+        { "subdomain_id": "general.pediatric_nursing.05", "name_ja": "検査や処置を受ける子どもと家族への看護", "order": 5 },
+        { "subdomain_id": "general.pediatric_nursing.06", "name_ja": "特別な状況下の子どもと家族への看護", "order": 6 },
+        { "subdomain_id": "general.pediatric_nursing.07", "name_ja": "急性期の子どもと家族への看護", "order": 7 },
+        { "subdomain_id": "general.pediatric_nursing.08", "name_ja": "慢性的な疾患・障害がある子どもと家族への看護", "order": 8 },
+        { "subdomain_id": "general.pediatric_nursing.09", "name_ja": "エンド・オブ・ライフにある子どもと家族への看護", "order": 9 },
+        { "subdomain_id": "general.pediatric_nursing.10", "name_ja": "状況設定問題", "order": 10 }
+      ]
+    },
+    {
+      "domain_id": "general.maternal_nursing",
+      "name_ja": "母性看護学",
+      "order": 8,
+      "subdomains": [
+        { "subdomain_id": "general.maternal_nursing.01", "name_ja": "母性看護の対象と社会・環境", "order": 1 },
+        { "subdomain_id": "general.maternal_nursing.02", "name_ja": "母性看護の基盤", "order": 2 },
+        { "subdomain_id": "general.maternal_nursing.03", "name_ja": "女性のライフサイクル各期における看護", "order": 3 },
+        { "subdomain_id": "general.maternal_nursing.04", "name_ja": "妊娠期の看護", "order": 4 },
+        { "subdomain_id": "general.maternal_nursing.05", "name_ja": "分娩期の看護", "order": 5 },
+        { "subdomain_id": "general.maternal_nursing.06", "name_ja": "産褥期の看護", "order": 6 },
+        { "subdomain_id": "general.maternal_nursing.07", "name_ja": "早期新生児期の看護", "order": 7 },
+        { "subdomain_id": "general.maternal_nursing.08", "name_ja": "状況設定問題", "order": 8 }
+      ]
+    },
+    {
+      "domain_id": "general.psychiatric_nursing",
+      "name_ja": "精神看護学",
+      "order": 9,
+      "subdomains": [
+        { "subdomain_id": "general.psychiatric_nursing.01", "name_ja": "精神保健の基本", "order": 1 },
+        { "subdomain_id": "general.psychiatric_nursing.02", "name_ja": "精神疾患・障害 の特徴と看護", "order": 2 },
+        { "subdomain_id": "general.psychiatric_nursing.03", "name_ja": "精神看護の対象理解と支援", "order": 3 },
+        { "subdomain_id": "general.psychiatric_nursing.04", "name_ja": "精神疾患・障害がある者への看護", "order": 4 },
+        { "subdomain_id": "general.psychiatric_nursing.05", "name_ja": "安全な治療環境の提供", "order": 5 },
+        { "subdomain_id": "general.psychiatric_nursing.06", "name_ja": "精神保健医療福祉の変遷と法や施策", "order": 6 },
+        { "subdomain_id": "general.psychiatric_nursing.07", "name_ja": "多職種連携", "order": 7 },
+        { "subdomain_id": "general.psychiatric_nursing.08", "name_ja": "状況設定問題", "order": 8 }
+      ]
+    },
+    {
+      "domain_id": "general.home_community_nursing",
+      "name_ja": "地域・在宅看護論（在宅看護論）",
+      "order": 10,
+      "subdomains": [
+        { "subdomain_id": "general.home_community_nursing.01", "name_ja": "地域・在宅看護の対象", "order": 1 },
+        { "subdomain_id": "general.home_community_nursing.02", "name_ja": "地域・在宅看護の概念", "order": 2 },
+        { "subdomain_id": "general.home_community_nursing.03", "name_ja": "地域・在宅看護における安全と健康危機管理", "order": 3 },
+        { "subdomain_id": "general.home_community_nursing.04", "name_ja": "地域・在宅看護実践をめぐる制度", "order": 4 },
+        { "subdomain_id": "general.home_community_nursing.05", "name_ja": "療養の場に応じた地域・在宅看護", "order": 5 },
+        { "subdomain_id": "general.home_community_nursing.06", "name_ja": "症状・疾患・治療に応じた地域・在宅看護", "order": 6 },
+        { "subdomain_id": "general.home_community_nursing.07", "name_ja": "在宅療養生活を支える看護", "order": 7 },
+        { "subdomain_id": "general.home_community_nursing.08", "name_ja": "地域ケアシステムにおける多職種連携", "order": 8 },
+        { "subdomain_id": "general.home_community_nursing.09", "name_ja": "地域包括ケアシステムにおける在宅看護", "order": 9 },
+        { "subdomain_id": "general.home_community_nursing.10", "name_ja": "状況設定問題", "order": 10 }
+      ]
+    },
+    {
+      "domain_id": "general.integration_practice",
+      "name_ja": "看護の統合と実践",
+      "order": 11,
+      "subdomains": [
+        { "subdomain_id": "general.integration_practice.01", "name_ja": "看護におけるマネジメント", "order": 1 },
+        { "subdomain_id": "general.integration_practice.02", "name_ja": "災害と看護", "order": 2 },
+        { "subdomain_id": "general.integration_practice.03", "name_ja": "国際化と看護", "order": 3 },
+        { "subdomain_id": "general.integration_practice.04", "name_ja": "臨床実践場面における統合的な判断", "order": 4 },
+        { "subdomain_id": "general.integration_practice.05", "name_ja": "状況設定問題", "order": 5 }
       ]
     }
   ]
