@@ -12,8 +12,8 @@ class TaxonomyDomain {
   factory TaxonomyDomain.fromJson(Map<String, dynamic> json) {
     final subdomainsJson = json['subdomains'] as List<dynamic>? ?? [];
     return TaxonomyDomain(
-      id: json['id'] as String,
-      name: json['name'] as String,
+      id: (json['id'] ?? json['domain_id']) as String,
+      name: (json['name'] ?? json['name_ja']) as String,
       subdomains: subdomainsJson
           .map((item) => TaxonomySubdomain.fromJson(item as Map<String, dynamic>))
           .toList(),
@@ -32,8 +32,8 @@ class TaxonomySubdomain {
 
   factory TaxonomySubdomain.fromJson(Map<String, dynamic> json) {
     return TaxonomySubdomain(
-      id: json['id'] as String,
-      name: json['name'] as String,
+      id: (json['id'] ?? json['subdomain_id']) as String,
+      name: (json['name'] ?? json['name_ja']) as String,
     );
   }
 }
