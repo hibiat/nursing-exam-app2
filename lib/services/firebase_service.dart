@@ -23,9 +23,13 @@ class FirebaseService {
   /// - question_sets/{setId}/questions_general.jsonl
   /// - question_sets/{setId}/questions_required.jsonl
   Future<void> initialize() async {
-    await Firebase.initializeApp();
-    if (auth.currentUser == null) {
-      await auth.signInAnonymously();
+    try {
+      await Firebase.initializeApp();
+      if (auth.currentUser == null) {
+        await auth.signInAnonymously();
+      }
+    } catch (error) {
+      // Allow app boot without Firebase options (e.g. web preview).
     }
   }
 }
