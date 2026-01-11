@@ -25,22 +25,27 @@ class QuestionSetService {
         .toList();
   }
 
-  Future<String?> loadActiveSetId() async {
-    final snapshot = await _firestore
-        .collection('question_sets')
-        .where('active', isEqualTo: true)
-        .limit(1)
-        .get();
-    if (snapshot.docs.isEmpty) return null;
-    return snapshot.docs.first.id;
-  }
+  Future<String?> loadActiveSetIdForMode(String mode) async {
+  final snapshot = await _firestore
+      .collection('question_sets')
+      .where('active', isEqualTo: true)
+      .where('mode', isEqualTo: mode) // ★追加
+      .limit(1)
+      .get();
+
+  if (snapshot.docs.isEmpty) return null;
+  return snapshot.docs.first.id;
+}
 
   Future<List<Question>> loadActiveQuestions({required String mode}) async {
-    final setId = await loadActiveSetId();
+    final setId = await loadActiveSetIdForMode(mode);
     if (setId == null) return [];
+
     final path = mode == 'required'
         ? 'question_sets/$setId/questions_required.jsonl'
         : 'question_sets/$setId/questions_general.jsonl';
+
     return loadQuestionsFromStorage(path);
   }
+
 }
