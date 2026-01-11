@@ -9,9 +9,9 @@ class FirebaseService {
 
   static final instance = FirebaseService._();
 
-  final FirebaseAuth auth = FirebaseAuth.instance;
-  final FirebaseFirestore firestore = FirebaseFirestore.instance;
-  final FirebaseStorage storage = FirebaseStorage.instance;
+  FirebaseAuth get auth => FirebaseAuth.instance;
+  FirebaseFirestore get firestore => FirebaseFirestore.instance;
+  FirebaseStorage get storage => FirebaseStorage.instance;
 
   /// Firestore collections (read/write rules):
   /// - users/{uid}/attempts/{attemptId} (user read/write)
