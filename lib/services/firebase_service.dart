@@ -2,6 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:flutter/foundation.dart';
 
 class FirebaseService {
   FirebaseService._();
@@ -23,6 +24,9 @@ class FirebaseService {
   /// - question_sets/{setId}/questions_general.jsonl
   /// - question_sets/{setId}/questions_required.jsonl
   Future<void> initialize() async {
+    if (kIsWeb) {
+      return;
+    }
     try {
       await Firebase.initializeApp();
       if (auth.currentUser == null) {
