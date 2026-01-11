@@ -20,7 +20,7 @@ class Attempt {
   final String mode;
   final String domainId;
   final String subdomainId;
-  final String chosen;
+  final String? chosen;
   final bool isCorrect;
   final bool isSkip;
   final String? confidence;

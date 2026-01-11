@@ -28,12 +28,15 @@ class _StudyScreenState extends State<StudyScreen> {
   bool answered = false;
   String? selectedChoice;
   String? confidence;
+  static const int _timeLimitMs = 15000;
 
   @override
   void initState() {
     super.initState();
     controller = StudySessionController(
       mode: widget.mode,
+      domainId: widget.domainId,
+      subdomainId: widget.subdomainId,
       unitTarget: 5,
     );
     controller.addListener(_onUpdate);
@@ -43,6 +46,9 @@ class _StudyScreenState extends State<StudyScreen> {
         setState(() {
           elapsedMs += 100;
         });
+        if (elapsedMs >= _timeLimitMs && !answered) {
+          _submit(chosen: null, isSkip: false, timeExpired: true);
+        }
       }
     });
   }
@@ -64,7 +70,7 @@ class _StudyScreenState extends State<StudyScreen> {
     });
   }
 
-  void _submit({required String chosen, required bool isSkip}) {
+  void _submit({required String? chosen, required bool isSkip, required bool timeExpired}) {
     if (answered) return;
     setState(() {
       answered = true;
@@ -74,13 +80,19 @@ class _StudyScreenState extends State<StudyScreen> {
       chosen: chosen,
       isSkip: isSkip,
       responseTimeMs: elapsedMs,
-      timeExpired: false,
+      timeExpired: timeExpired,
       confidence: confidence,
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    if (controller.isLoading) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
     final question = controller.currentQuestion;
     if (question == null) {
       return const Scaffold(
@@ -88,7 +100,7 @@ class _StudyScreenState extends State<StudyScreen> {
       );
     }
 
-    final timeProgress = (elapsedMs / 15000).clamp(0, 1).toDouble();
+    final timeProgress = (elapsedMs / _timeLimitMs).clamp(0, 1).toDouble();
 
     return Scaffold(
       appBar: AppBar(
@@ -115,7 +127,11 @@ class _StudyScreenState extends State<StudyScreen> {
                 (choice) => Padding(
                   padding: const EdgeInsets.only(bottom: 12),
                   child: OutlinedButton(
-                    onPressed: () => _submit(chosen: choice, isSkip: false),
+                    onPressed: () => _submit(
+                      chosen: choice,
+                      isSkip: false,
+                      timeExpired: false,
+                    ),
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
                     ),
@@ -128,7 +144,11 @@ class _StudyScreenState extends State<StudyScreen> {
               ),
               const SizedBox(height: 8),
               TextButton(
-                onPressed: () => _submit(chosen: 'skip', isSkip: true),
+                onPressed: () => _submit(
+                  chosen: null,
+                  isSkip: true,
+                  timeExpired: false,
+                ),
                 child: const Text('わからない（スキップ）'),
               ),
               const SizedBox(height: 16),
@@ -157,7 +177,7 @@ class _StudyScreenState extends State<StudyScreen> {
               lastRank: controller.lastRank,
               subdomainScore: controller.currentScore,
               showStreakPraise: controller.showStreakPraise,
-              showRequiredBorder: widget.mode == 'required' && controller.showRequiredBorder,
+              requiredBorderLabel: controller.requiredBorderLabel,
               onClose: controller.dismissOverlay,
             ),
         ],

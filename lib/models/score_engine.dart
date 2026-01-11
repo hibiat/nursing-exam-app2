@@ -33,6 +33,7 @@ class ScoreEngine {
     }
 
     final result = isCorrect ? 1.0 : 0.0;
+    // TODO: Replace difficulty with inferred item parameters once Cloud Functions aggregates stats.
     final beta = (difficulty - 0.5) * 2.0;
     final p = 1 / (1 + exp(-(theta - beta)));
 
