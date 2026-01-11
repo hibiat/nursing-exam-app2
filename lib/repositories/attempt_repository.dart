@@ -1,21 +1,26 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 import '../models/attempt.dart';
 
 class AttemptRepository {
-  AttemptRepository(this.firestore, this.uid);
+  AttemptRepository({FirebaseFirestore? firestore, FirebaseAuth? auth})
+      : _firestore = firestore ?? FirebaseFirestore.instance,
+        _auth = auth ?? FirebaseAuth.instance;
 
-  final FirebaseFirestore firestore;
-  final String uid;
+  final FirebaseFirestore _firestore;
+  final FirebaseAuth _auth;
 
   /// Firestore structure:
-  /// users/{uid}/attempts/{attemptId}
+  /// users/{uid}/attempts/{autoId}
   Future<void> saveAttempt(Attempt attempt) async {
-    await firestore
+    final user = _auth.currentUser;
+    if (user == null) return;
+    // TODO: Aggregate attempt stats via Cloud Functions for difficulty calibration.
+    await _firestore
         .collection('users')
-        .doc(uid)
+        .doc(user.uid)
         .collection('attempts')
-        .doc(attempt.id)
-        .set(attempt.toFirestore());
+        .add(attempt.toFirestore());
   }
 }

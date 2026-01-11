@@ -7,7 +7,7 @@ class ScoreUpdateOverlay extends StatelessWidget {
     required this.lastRank,
     required this.subdomainScore,
     required this.showStreakPraise,
-    required this.showRequiredBorder,
+    required this.requiredBorderLabel,
     required this.onClose,
   });
 
@@ -15,7 +15,7 @@ class ScoreUpdateOverlay extends StatelessWidget {
   final String? lastRank;
   final double subdomainScore;
   final bool showStreakPraise;
-  final bool showRequiredBorder;
+  final String? requiredBorderLabel;
   final VoidCallback onClose;
 
   @override
@@ -49,7 +49,7 @@ class ScoreUpdateOverlay extends StatelessWidget {
                 const SizedBox(height: 16),
                 Align(
                   alignment: Alignment.centerLeft,
-                  child: Text('根拠バー'),
+                  child: Text('下位領域スコア ${subdomainScore.toStringAsFixed(0)}'),
                 ),
                 const SizedBox(height: 8),
                 TweenAnimationBuilder<double>(
@@ -72,10 +72,10 @@ class ScoreUpdateOverlay extends StatelessWidget {
                     ),
                     child: const Text('連続学習3日目！素晴らしいです！'),
                   ),
-                if (showRequiredBorder)
-                  const Padding(
-                    padding: EdgeInsets.only(top: 12),
-                    child: Text('必修ボーダー余裕度: 安定'),
+                if (requiredBorderLabel != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 12),
+                    child: Text('必修ボーダー余裕度: $requiredBorderLabel'),
                   ),
                 const SizedBox(height: 16),
                 FilledButton(
