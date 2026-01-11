@@ -1,12 +1,26 @@
 {
-  "domains": [
-    {
-      "id": "req-01",
-      "name": "必修基礎",
-      "subdomains": [
-        {"id": "req-01-01", "name": "看護基礎"},
-        {"id": "req-01-02", "name": "医療安全"}
-      ]
-    }
-  ]
+  "schema_version": "1.0",
+  "mode": "required",
+  "domain": {
+    "domain_id": "required.core",
+    "name_ja": "必修",
+    "subdomains": [
+      { "subdomain_id": "required.core.01", "name_ja": "健康の定義と理解", "order": 1 },
+      { "subdomain_id": "required.core.02", "name_ja": "健康に影響する要因", "order": 2 },
+      { "subdomain_id": "required.core.03", "name_ja": "看護で活用する社会保障", "order": 3 },
+      { "subdomain_id": "required.core.04", "name_ja": "看護における倫理", "order": 4 },
+      { "subdomain_id": "required.core.05", "name_ja": "看護に関わる基本的法律", "order": 5 },
+      { "subdomain_id": "required.core.06", "name_ja": "人間の特性", "order": 6 },
+      { "subdomain_id": "required.core.07", "name_ja": "人間のライフサイクル各期の特徴と生活", "order": 7 },
+      { "subdomain_id": "required.core.08", "name_ja": "看護の対象としての患者と家族", "order": 8 },
+      { "subdomain_id": "required.core.09", "name_ja": "主な看護活動の場と看護の機能", "order": 9 },
+      { "subdomain_id": "required.core.10", "name_ja": "人体の構造と機能", "order": 10 },
+      { "subdomain_id": "required.core.11", "name_ja": "徴候と疾患", "order": 11 },
+      { "subdomain_id": "required.core.12", "name_ja": "薬物の作用とその管理", "order": 12 },
+      { "subdomain_id": "required.core.13", "name_ja": "看護における基本技術", "order": 13 },
+      { "subdomain_id": "required.core.14", "name_ja": "日常生活援助技術", "order": 14 },
+      { "subdomain_id": "required.core.15", "name_ja": "患者の安全・安楽を守る看護技術", "order": 15 },
+      { "subdomain_id": "required.core.16", "name_ja": "診療に伴う看護技術", "order": 16 }
+    ]
+  }
 }
