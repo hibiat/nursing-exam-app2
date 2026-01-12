@@ -31,28 +31,49 @@ class ScoreUpdateOverlay extends StatefulWidget {
 }
 
 class _ScoreUpdateOverlayState extends State<ScoreUpdateOverlay>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   late final AnimationController _controller;
   late final Animation<double> _fade;
   late final Animation<double> _scale;
+  late final AnimationController _rankController;
+  late final Animation<double> _rankScale;
+  bool _startBars = false;
 
   @override
   void initState() {
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 420),
+      duration: const Duration(milliseconds: 220),
     );
     _fade = CurvedAnimation(parent: _controller, curve: Curves.easeOut);
     _scale = Tween<double>(begin: 0.96, end: 1.0).animate(
       CurvedAnimation(parent: _controller, curve: Curves.easeOutBack),
     );
+    _rankController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 260),
+    );
+    _rankScale = Tween<double>(begin: 0.92, end: 1.0).animate(
+      CurvedAnimation(parent: _rankController, curve: Curves.easeOutBack),
+    );
     _controller.forward();
+    Future.delayed(const Duration(milliseconds: 120), () {
+      if (mounted) {
+        _rankController.forward();
+      }
+    });
+    Future.delayed(const Duration(milliseconds: 160), () {
+      if (mounted) {
+        setState(() => _startBars = true);
+      }
+    });
   }
 
   @override
   void dispose() {
     _controller.dispose();
+    _rankController.dispose();
     super.dispose();
   }
 
@@ -93,10 +114,6 @@ class _ScoreUpdateOverlayState extends State<ScoreUpdateOverlay>
                             style: theme.textTheme.titleLarge,
                           ),
                         ),
-                        IconButton(
-                          onPressed: widget.onClose,
-                          icon: const Icon(Icons.close),
-                        ),
                       ],
                     ),
                     const SizedBox(height: 8),
@@ -105,11 +122,14 @@ class _ScoreUpdateOverlayState extends State<ScoreUpdateOverlay>
                       style: theme.textTheme.labelLarge,
                     ),
                     const SizedBox(height: 6),
-                    Text(
-                      widget.rank ?? '-',
-                      style: theme.textTheme.displaySmall?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 2,
+                    ScaleTransition(
+                      scale: _rankScale,
+                      child: Text(
+                        widget.rank ?? '-',
+                        style: theme.textTheme.displaySmall?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 2,
+                        ),
                       ),
                     ),
                     const SizedBox(height: 4),
@@ -143,7 +163,12 @@ class _ScoreUpdateOverlayState extends State<ScoreUpdateOverlay>
                           : SingleChildScrollView(
                               child: Column(
                                 children: widget.skillProgress
-                                    .map((progress) => _SkillProgressTile(progress: progress))
+                                    .map(
+                                      (progress) => _SkillProgressTile(
+                                        progress: progress,
+                                        startAnimation: _startBars,
+                                      ),
+                                    )
                                     .toList(),
                               ),
                             ),
@@ -169,22 +194,12 @@ class _ScoreUpdateOverlayState extends State<ScoreUpdateOverlay>
                         child: Text('必修ボーダー余裕度: ${widget.requiredBorderLabel}'),
                       ),
                     const SizedBox(height: 16),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: OutlinedButton(
-                            onPressed: widget.onClose,
-                            child: const Text('閉じる'),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: FilledButton(
-                            onPressed: widget.onClose,
-                            child: const Text('OK'),
-                          ),
-                        ),
-                      ],
+                    SizedBox(
+                      width: double.infinity,
+                      child: FilledButton(
+                        onPressed: widget.onClose,
+                        child: const Text('OK'),
+                      ),
                     ),
                   ],
                 ),
@@ -198,15 +213,29 @@ class _ScoreUpdateOverlayState extends State<ScoreUpdateOverlay>
 }
 
 class _SkillProgressTile extends StatelessWidget {
-  const _SkillProgressTile({required this.progress});
+  const _SkillProgressTile({
+    required this.progress,
+    required this.startAnimation,
+  });
 
   final SkillProgress progress;
+  final bool startAnimation;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final previous = progress.previousScore;
     final current = progress.currentScore;
+    final delta = current - previous;
+    final deltaLabel = delta == 0
+        ? '±0'
+        : delta > 0
+            ? '+${delta.toStringAsFixed(1)}'
+            : delta.toStringAsFixed(1);
+    final deltaColor = delta >= 0 ? theme.colorScheme.primary : theme.colorScheme.error;
+    final animatedTarget = startAnimation
+        ? (delta == 0 ? (current + 0.5).clamp(0, 100).toDouble() : current)
+        : previous;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: Column(
@@ -224,20 +253,39 @@ class _SkillProgressTile extends StatelessWidget {
                 '${previous.toStringAsFixed(0)} → ${current.toStringAsFixed(0)}',
                 style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.primary),
               ),
+              const SizedBox(width: 8),
+              AnimatedOpacity(
+                opacity: startAnimation ? 1 : 0,
+                duration: const Duration(milliseconds: 220),
+                child: Text(
+                  deltaLabel,
+                  style: theme.textTheme.bodySmall?.copyWith(color: deltaColor),
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 6),
           TweenAnimationBuilder<double>(
-            tween: Tween(begin: previous, end: current),
-            duration: const Duration(milliseconds: 900),
+            tween: Tween(begin: previous, end: animatedTarget),
+            duration: const Duration(milliseconds: 480),
             curve: Curves.easeOutCubic,
             builder: (context, value, child) {
               return ClipRRect(
                 borderRadius: BorderRadius.circular(6),
-                child: LinearProgressIndicator(
-                  value: (value / 100).clamp(0, 1),
-                  minHeight: 8,
-                  backgroundColor: theme.colorScheme.surfaceVariant,
+                child: Stack(
+                  children: [
+                    LinearProgressIndicator(
+                      value: (previous / 100).clamp(0, 1),
+                      minHeight: 10,
+                      backgroundColor: theme.colorScheme.surfaceVariant,
+                      valueColor: AlwaysStoppedAnimation(theme.colorScheme.surfaceVariant),
+                    ),
+                    LinearProgressIndicator(
+                      value: (value / 100).clamp(0, 1),
+                      minHeight: 10,
+                      backgroundColor: Colors.transparent,
+                    ),
+                  ],
                 ),
               );
             },

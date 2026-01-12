@@ -42,4 +42,21 @@ class SkillStateRepository {
     }
     return result;
   }
+
+  Stream<Map<String, SkillState>> watchSkillStates() {
+    final user = _auth.currentUser;
+    if (user == null) return Stream.value({});
+    return _firestore
+        .collection('users')
+        .doc(user.uid)
+        .collection('skill_state')
+        .snapshots()
+        .map((snapshot) {
+      final result = <String, SkillState>{};
+      for (final doc in snapshot.docs) {
+        result[doc.id] = SkillState.fromFirestore(doc.id, doc.data());
+      }
+      return result;
+    });
+  }
 }
