@@ -229,20 +229,33 @@ class StudySessionController extends ChangeNotifier {
   }
 
   void _pickNextQuestion() {
-    currentQuestionId = scheduler.selectNextQuestion(
-          candidates: _questions,
-          questionStates: questionStates,
-          skillStates: skillStates,
-          now: DateTime.now(),
-          skillScopeResolver: _skillScopeId,
-        ) ??
-        (_questions.isNotEmpty ? _questions.first.id : null);
+    final previousId = currentQuestionId;
+    final nextId = scheduler.selectNextQuestion(
+      candidates: _questions,
+      questionStates: questionStates,
+      skillStates: skillStates,
+      now: DateTime.now(),
+      skillScopeResolver: _skillScopeId,
+    );
+    if (previousId != null && nextId == previousId && _questions.length > 1) {
+      final remaining = _questions.where((q) => q.id != previousId).toList();
+      currentQuestionId = scheduler.selectNextQuestion(
+            candidates: remaining,
+            questionStates: questionStates,
+            skillStates: skillStates,
+            now: DateTime.now(),
+            skillScopeResolver: _skillScopeId,
+          ) ??
+          nextId;
+      return;
+    }
+    currentQuestionId = nextId ?? (_questions.isNotEmpty ? _questions.first.id : null);
   }
 
   List<Question> _filterQuestions(List<Question> source) {
     return source
         .where((question) => question.domainId == domainId)
-        .where((question) => question.subdomainId == subdomainId)
+        .where((question) => subdomainId == 'all' || question.subdomainId == subdomainId)
         .toList();
   }
 

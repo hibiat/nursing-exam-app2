@@ -31,7 +31,7 @@ class _StudyScreenState extends State<StudyScreen> {
   bool answered = false;
   String? selectedChoice;
   String? confidence;
-  static const int _timerTickMs = 100;
+  static const int _timerTickMs = 1000;
   int _timeLimitMs = UserSettingsRepository.defaultTimeLimitSeconds * 1000;
 
   @override
@@ -174,7 +174,7 @@ class _StudyScreenState extends State<StudyScreen> {
                 minHeight: 6,
               ),
               const SizedBox(height: 8),
-              Text('残り時間: ${(remainingMs / 1000).toStringAsFixed(1)}秒'),
+              Text('残り時間: ${(remainingMs / 1000).ceil()}秒'),
               const SizedBox(height: 24),
               ...question.choices.map(
                 (choice) => Padding(

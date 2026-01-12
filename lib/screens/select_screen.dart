@@ -41,6 +41,7 @@ class _SelectScreenState extends State<SelectScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isRequired = widget.mode == 'required';
     return FutureBuilder<_SelectScreenData>(
       future: _loadData(),
       builder: (context, snapshot) {
@@ -68,6 +69,7 @@ class _SelectScreenState extends State<SelectScreen> {
           return const Center(child: Text('分類データがありません'));
         }
         return ListView.builder(
+          padding: const EdgeInsets.symmetric(vertical: 8),
           itemCount: domains.length + (data.reviewLoadFailed ? 1 : 0),
           itemBuilder: (context, index) {
             if (data.reviewLoadFailed && index == 0) {
@@ -82,27 +84,39 @@ class _SelectScreenState extends State<SelectScreen> {
             final domainIndex = data.reviewLoadFailed ? index - 1 : index;
             final domain = domains[domainIndex];
             final reviewCount = data.reviewCounts[domain.id] ?? 0;
-            return ExpansionTile(
-              title: Text(domain.name),
-              subtitle: reviewCount > 0 ? Text('復習 $reviewCount 問') : null,
-              children: domain.subdomains
-                  .map(
-                    (subdomain) => ListTile(
-                      title: Text(subdomain.name),
-                      onTap: () {
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => StudyScreen(
-                              mode: widget.mode,
-                              domainId: domain.id,
-                              subdomainId: subdomain.id,
-                            ),
-                          ),
-                        );
-                      },
+            if (!isRequired) {
+              return _DomainCard(
+                title: domain.name,
+                reviewCount: reviewCount,
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => StudyScreen(
+                        mode: widget.mode,
+                        domainId: domain.id,
+                        subdomainId: 'all',
+                      ),
                     ),
-                  )
-                  .toList(),
+                  );
+                },
+              );
+            }
+            return _RequiredDomainCard(
+              title: domain.name,
+              reviewCount: reviewCount,
+              initiallyExpanded: domainIndex == 0,
+              subdomains: domain.subdomains,
+              onTapSubdomain: (subdomainId) {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => StudyScreen(
+                      mode: widget.mode,
+                      domainId: domain.id,
+                      subdomainId: subdomainId,
+                    ),
+                  ),
+                );
+              },
             );
           },
         );
@@ -121,4 +135,66 @@ class _SelectScreenData {
   final List<TaxonomyDomain> domains;
   final Map<String, int> reviewCounts;
   final bool reviewLoadFailed;
+}
+
+class _DomainCard extends StatelessWidget {
+  const _DomainCard({
+    required this.title,
+    required this.reviewCount,
+    this.onTap,
+  });
+
+  final String title;
+  final int reviewCount;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      child: ListTile(
+        title: Text(title),
+        subtitle: reviewCount > 0 ? Text('復習 $reviewCount 問') : null,
+        trailing: const Icon(Icons.chevron_right),
+        onTap: onTap,
+      ),
+    );
+  }
+}
+
+class _RequiredDomainCard extends StatelessWidget {
+  const _RequiredDomainCard({
+    required this.title,
+    required this.reviewCount,
+    required this.initiallyExpanded,
+    required this.subdomains,
+    required this.onTapSubdomain,
+  });
+
+  final String title;
+  final int reviewCount;
+  final bool initiallyExpanded;
+  final List<TaxonomySubdomain> subdomains;
+  final ValueChanged<String> onTapSubdomain;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      child: ExpansionTile(
+        title: Text(title),
+        subtitle: reviewCount > 0 ? Text('復習 $reviewCount 問') : null,
+        initiallyExpanded: initiallyExpanded,
+        maintainState: true,
+        children: subdomains
+            .map(
+              (subdomain) => ListTile(
+                title: Text(subdomain.name),
+                onTap: () => onTapSubdomain(subdomain.id),
+              ),
+            )
+            .toList(),
+      ),
+    );
+  }
 }
