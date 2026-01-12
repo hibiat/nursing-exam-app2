@@ -23,4 +23,42 @@ class QuestionStateRepository {
         .doc(state.questionId)
         .set(state.toFirestore());
   }
+
+  Future<List<QuestionState>> fetchQuestionStates({
+    required String mode,
+    required String domainId,
+  }) async {
+    final user = _auth.currentUser;
+    if (user == null) return [];
+    final snapshot = await _firestore
+        .collection('users')
+        .doc(user.uid)
+        .collection('question_state')
+        .where('mode', isEqualTo: mode)
+        .where('domainId', isEqualTo: domainId)
+        .get();
+    return snapshot.docs
+        .map((doc) => QuestionState.fromFirestore(doc.id, doc.data()))
+        .toList();
+  }
+
+  Future<Map<String, int>> fetchDueCountsByDomain({required String mode}) async {
+    final user = _auth.currentUser;
+    if (user == null) return {};
+    final now = Timestamp.now();
+    final snapshot = await _firestore
+        .collection('users')
+        .doc(user.uid)
+        .collection('question_state')
+        .where('mode', isEqualTo: mode)
+        .where('dueAt', isLessThanOrEqualTo: now)
+        .get();
+    final counts = <String, int>{};
+    for (final doc in snapshot.docs) {
+      final domainId = (doc.data()['domainId'] as String?) ?? '';
+      if (domainId.isEmpty) continue;
+      counts.update(domainId, (value) => value + 1, ifAbsent: () => 1);
+    }
+    return counts;
+  }
 }
