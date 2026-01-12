@@ -11,10 +11,12 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  late final Future<void> _authFuture;
+
   @override
   void initState() {
     super.initState();
-    _initAuth();
+    _authFuture = _initAuth();
   }
 
   Future<void> _initAuth() async {
@@ -25,25 +27,44 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return DefaultTabController(
-      length: 2,
-      child: Scaffold(
-        appBar: AppBar(
-          title: const Text('看護師国家試験アプリ'),
-          bottom: const TabBar(
-            tabs: [
-              Tab(text: '必修'),
-              Tab(text: '一般・状況設定'),
-            ],
+    return FutureBuilder<void>(
+      future: _authFuture,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState != ConnectionState.done) {
+          return const Scaffold(
+            body: Center(
+              child: CircularProgressIndicator(),
+            ),
+          );
+        }
+        if (snapshot.hasError) {
+          return Scaffold(
+            body: Center(
+              child: Text('認証に失敗しました: ${snapshot.error}'),
+            ),
+          );
+        }
+        return DefaultTabController(
+          length: 2,
+          child: Scaffold(
+            appBar: AppBar(
+              title: const Text('看護師国家試験アプリ'),
+              bottom: const TabBar(
+                tabs: [
+                  Tab(text: '必修'),
+                  Tab(text: '一般・状況設定'),
+                ],
+              ),
+            ),
+            body: const TabBarView(
+              children: [
+                SelectScreen(mode: 'required'),
+                SelectScreen(mode: 'general'),
+              ],
+            ),
           ),
-        ),
-        body: const TabBarView(
-          children: [
-            SelectScreen(mode: 'required'),
-            SelectScreen(mode: 'general'),
-          ],
-        ),
-      ),
+        );
+      },
     );
   }
 }

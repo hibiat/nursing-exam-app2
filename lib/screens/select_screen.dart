@@ -28,10 +28,16 @@ class _SelectScreenState extends State<SelectScreen> {
     return FutureBuilder<List<TaxonomyDomain>>(
       future: _loadDomains(),
       builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return Center(child: Text('分類データの読み込みに失敗しました'));
+        }
         if (!snapshot.hasData) {
           return const Center(child: CircularProgressIndicator());
         }
         final domains = snapshot.data!;
+        if (domains.isEmpty) {
+          return const Center(child: Text('分類データがありません'));
+        }
         return ListView.builder(
           itemCount: domains.length,
           itemBuilder: (context, index) {

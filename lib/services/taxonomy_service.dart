@@ -8,7 +8,8 @@ class TaxonomyService {
   Future<List<TaxonomyDomain>> loadDomains(String assetPath) async {
     final raw = await rootBundle.loadString(assetPath);
     final data = jsonDecode(raw) as Map<String, dynamic>;
-    final domainsJson = data['domains'] as List<dynamic>? ?? [];
+    final domainsJson = data['domains'] as List<dynamic>? ??
+        (data['domain'] != null ? [data['domain']] : <dynamic>[]);
     return domainsJson
         .map((item) => TaxonomyDomain.fromJson(item as Map<String, dynamic>))
         .toList();
