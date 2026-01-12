@@ -320,7 +320,6 @@ class StudySessionController extends ChangeNotifier {
   }
 
   Future<void> _triggerUnitComplete() async {
-    showOverlay = true;
     final now = DateTime.now();
     final isFirstToday = lastUnitCompletedAt == null ||
         lastUnitCompletedAt!.year != now.year ||
@@ -342,8 +341,15 @@ class StudySessionController extends ChangeNotifier {
     } else {
       requiredBorderLabel = null;
     }
+    // Before/after差分はここで確定:
+    // - lastSkillScores(前回) -> SkillProgress.previousScore
+    // - skillStates(今回) -> SkillProgress.currentScore
+    // overlayにはlatestSkillProgressとして渡す。
     _refreshSkillProgressSnapshot();
     _snapshotSkillScores();
+    await Future.delayed(const Duration(milliseconds: 320));
+    showOverlay = true;
+    notifyListeners();
   }
 
   String _requiredBorderLabel(double score) {
