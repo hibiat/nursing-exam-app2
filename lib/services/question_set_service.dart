@@ -18,16 +18,31 @@ class QuestionSetService {
 
   Future<Uint8List?> _downloadBytes(Reference ref, String path) async {
     if (kIsWeb) {
+      try {
+        final data = await ref.getData();
+        if (data != null) {
+          return data;
+        }
+      } catch (error) {
+        // ignore: avoid_print
+        print('QuestionSetService.download web getData error=$error');
+      }
       final url = await ref.getDownloadURL();
       // ignore: avoid_print
       print('QuestionSetService.download url=$url');
-      final response = await http.get(Uri.parse(url));
-      if (response.statusCode != 200) {
+      try {
+        final response = await http.get(Uri.parse(url));
+        if (response.statusCode != 200) {
+          throw Exception(
+            'Storage download failed status=${response.statusCode} path=$path',
+          );
+        }
+        return response.bodyBytes;
+      } on http.ClientException catch (error) {
         throw Exception(
-          'Storage download failed status=${response.statusCode} path=$path',
+          'Storage download failed (web/CORS) path=$path error=$error',
         );
       }
-      return response.bodyBytes;
     }
     return ref.getData();
   }
