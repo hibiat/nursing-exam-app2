@@ -31,7 +31,7 @@ class ScoreUpdateOverlay extends StatefulWidget {
 }
 
 class _ScoreUpdateOverlayState extends State<ScoreUpdateOverlay>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   late final AnimationController _controller;
   late final Animation<double> _fade;
   late final Animation<double> _scale;
