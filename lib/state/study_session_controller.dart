@@ -25,20 +25,19 @@ class StudySessionController extends ChangeNotifier {
     QuestionStateRepository? questionStateRepository,
     SkillStateRepository? skillStateRepository,
     QuestionSetService? questionSetService,
-  });
+  })  : attemptRepository = attemptRepository ?? AttemptRepository(),
+        questionStateRepository = questionStateRepository ?? QuestionStateRepository(),
+        skillStateRepository = skillStateRepository ?? SkillStateRepository(),
+        questionSetService = questionSetService ?? QuestionSetService();
 
   final String mode;
   final String domainId;
   final String subdomainId;
   final int unitTarget;
-  late final AttemptRepository attemptRepository =
-      attemptRepository ?? AttemptRepository();
-  late final QuestionStateRepository questionStateRepository =
-      questionStateRepository ?? QuestionStateRepository();
-  late final SkillStateRepository skillStateRepository =
-      skillStateRepository ?? SkillStateRepository();
-  late final QuestionSetService questionSetService =
-      questionSetService ?? QuestionSetService();
+  final AttemptRepository attemptRepository;
+  final QuestionStateRepository questionStateRepository;
+  final SkillStateRepository skillStateRepository;
+  final QuestionSetService questionSetService;
   final Scheduler scheduler = const Scheduler();
   final ScoreEngine scoreEngine = ScoreEngine();
 
