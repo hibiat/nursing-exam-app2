@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../models/user_profile.dart';
 import '../repositories/user_profile_repository.dart';
+import '../widgets/score_summary_card.dart';
 import 'onboarding_exam_screen.dart';
 import 'select_screen.dart';
 import 'settings_screen.dart';
@@ -33,6 +34,12 @@ class _HomeScreenState extends State<HomeScreen> {
     _profile = await userProfileRepository.fetchProfile();
   }
 
+  void _retryAuth() {
+    setState(() {
+      _authFuture = _initAuth();
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return FutureBuilder<void>(
@@ -48,7 +55,17 @@ class _HomeScreenState extends State<HomeScreen> {
         if (snapshot.hasError) {
           return Scaffold(
             body: Center(
-              child: Text('認証に失敗しました: ${snapshot.error}'),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text('認証に失敗しました: ${snapshot.error}'),
+                  const SizedBox(height: 8),
+                  TextButton(
+                    onPressed: _retryAuth,
+                    child: const Text('再試行'),
+                  ),
+                ],
+              ),
             ),
           );
         }
@@ -74,11 +91,23 @@ class _HomeScreenState extends State<HomeScreen> {
                   },
                 ),
               ],
-              bottom: const TabBar(
-                tabs: [
-                  Tab(text: '必修'),
-                  Tab(text: '一般・状況設定'),
-                ],
+              bottom: PreferredSize(
+                preferredSize: const Size.fromHeight(200),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    ScoreSummaryCard(
+                      onStartOnboarding:
+                          _profile?.onboardingCompleted == true ? null : _startOnboardingExam,
+                    ),
+                    const TabBar(
+                      tabs: [
+                        Tab(text: '必修'),
+                        Tab(text: '一般・状況設定'),
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ),
             body: const TabBarView(
