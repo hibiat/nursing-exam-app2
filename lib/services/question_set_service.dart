@@ -18,6 +18,15 @@ class QuestionSetService {
 
   Future<Uint8List?> _downloadBytes(Reference ref, String path) async {
     if (kIsWeb) {
+      try {
+        final data = await ref.getData();
+        if (data != null) {
+          return data;
+        }
+      } catch (error) {
+        // ignore: avoid_print
+        print('QuestionSetService.download web getData error=$error');
+      }
       final url = await ref.getDownloadURL();
       // ignore: avoid_print
       print('QuestionSetService.download url=$url');
