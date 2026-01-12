@@ -45,18 +45,21 @@ class QuestionStateRepository {
   Future<Map<String, int>> fetchDueCountsByDomain({required String mode}) async {
     final user = _auth.currentUser;
     if (user == null) return {};
-    final now = Timestamp.now();
+    final now = DateTime.now();
     final snapshot = await _firestore
         .collection('users')
         .doc(user.uid)
         .collection('question_state')
         .where('mode', isEqualTo: mode)
-        .where('dueAt', isLessThanOrEqualTo: now)
         .get();
     final counts = <String, int>{};
     for (final doc in snapshot.docs) {
-      final domainId = (doc.data()['domainId'] as String?) ?? '';
+      final data = doc.data();
+      final domainId = (data['domainId'] as String?) ?? '';
       if (domainId.isEmpty) continue;
+      final dueAt = data['dueAt'];
+      if (dueAt is! Timestamp) continue;
+      if (dueAt.toDate().isAfter(now)) continue;
       counts.update(domainId, (value) => value + 1, ifAbsent: () => 1);
     }
     return counts;

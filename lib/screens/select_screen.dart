@@ -41,6 +41,7 @@ class _SelectScreenState extends State<SelectScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isRequired = widget.mode == 'required';
     return FutureBuilder<_SelectScreenData>(
       future: _loadData(),
       builder: (context, snapshot) {
@@ -67,8 +68,25 @@ class _SelectScreenState extends State<SelectScreen> {
         if (domains.isEmpty) {
           return const Center(child: Text('分類データがありません'));
         }
+        final requiredItems = isRequired
+            ? domains
+                .expand(
+                  (domain) => domain.subdomains.map(
+                    (subdomain) => _RequiredSubdomainItem(
+                      domainId: domain.id,
+                      subdomainId: subdomain.id,
+                      label: subdomain.name,
+                    ),
+                  ),
+                )
+                .toList()
+            : <_RequiredSubdomainItem>[];
+        final listCount = isRequired
+            ? requiredItems.length + (data.reviewLoadFailed ? 1 : 0)
+            : domains.length + (data.reviewLoadFailed ? 1 : 0);
         return ListView.builder(
-          itemCount: domains.length + (data.reviewLoadFailed ? 1 : 0),
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          itemCount: listCount,
           itemBuilder: (context, index) {
             if (data.reviewLoadFailed && index == 0) {
               return Padding(
@@ -79,30 +97,42 @@ class _SelectScreenState extends State<SelectScreen> {
                 ),
               );
             }
-            final domainIndex = data.reviewLoadFailed ? index - 1 : index;
-            final domain = domains[domainIndex];
-            final reviewCount = data.reviewCounts[domain.id] ?? 0;
-            return ExpansionTile(
-              title: Text(domain.name),
-              subtitle: reviewCount > 0 ? Text('復習 $reviewCount 問') : null,
-              children: domain.subdomains
-                  .map(
-                    (subdomain) => ListTile(
-                      title: Text(subdomain.name),
-                      onTap: () {
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => StudyScreen(
-                              mode: widget.mode,
-                              domainId: domain.id,
-                              subdomainId: subdomain.id,
-                            ),
-                          ),
-                        );
-                      },
+            if (!isRequired) {
+              final domainIndex = data.reviewLoadFailed ? index - 1 : index;
+              final domain = domains[domainIndex];
+              final reviewCount = data.reviewCounts[domain.id] ?? 0;
+              return _DomainCard(
+                title: domain.name,
+                reviewCount: reviewCount,
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => StudyScreen(
+                        mode: widget.mode,
+                        domainId: domain.id,
+                        subdomainId: 'all',
+                      ),
                     ),
-                  )
-                  .toList(),
+                  );
+                },
+              );
+            }
+            final requiredIndex = data.reviewLoadFailed ? index - 1 : index;
+            final requiredItem = requiredItems[requiredIndex];
+            return _DomainCard(
+              title: requiredItem.label,
+              reviewCount: 0,
+              onTap: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => StudyScreen(
+                      mode: widget.mode,
+                      domainId: requiredItem.domainId,
+                      subdomainId: requiredItem.subdomainId,
+                    ),
+                  ),
+                );
+              },
             );
           },
         );
@@ -121,4 +151,42 @@ class _SelectScreenData {
   final List<TaxonomyDomain> domains;
   final Map<String, int> reviewCounts;
   final bool reviewLoadFailed;
+}
+
+class _DomainCard extends StatelessWidget {
+  const _DomainCard({
+    required this.title,
+    required this.reviewCount,
+    this.onTap,
+  });
+
+  final String title;
+  final int reviewCount;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final subtitle = reviewCount > 0 ? Text('復習 $reviewCount 問') : null;
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      child: ListTile(
+        title: Text(title),
+        subtitle: subtitle,
+        trailing: const Icon(Icons.chevron_right),
+        onTap: onTap,
+      ),
+    );
+  }
+}
+
+class _RequiredSubdomainItem {
+  const _RequiredSubdomainItem({
+    required this.domainId,
+    required this.subdomainId,
+    required this.label,
+  });
+
+  final String domainId;
+  final String subdomainId;
+  final String label;
 }
