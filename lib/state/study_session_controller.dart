@@ -11,6 +11,7 @@ import '../models/skill_state.dart';
 import '../repositories/attempt_repository.dart';
 import '../repositories/question_state_repository.dart';
 import '../repositories/skill_state_repository.dart';
+import '../services/auth_service.dart';
 import '../services/question_set_service.dart';
 import '../services/scheduler.dart';
 
@@ -74,15 +75,34 @@ class StudySessionController extends ChangeNotifier {
     loadError = null;
     notifyListeners();
     try {
+      final user = await AuthService.ensureSignedIn();
+      // ignore: avoid_print
+      print('StudySessionController.start signed in uid=${user.uid}');
+      // ignore: avoid_print
+      print('StudySessionController.start loading questions mode=$mode');
       final loaded = await questionSetService.loadActiveQuestions(mode: mode);
+      // ignore: avoid_print
+      print('StudySessionController.start loaded count=${loaded.length}');
       _questions = _filterQuestions(loaded);
+      // ignore: avoid_print
+      print(
+        'StudySessionController.start filtered count=${_questions.length} '
+        'domainId=$domainId subdomainId=$subdomainId',
+      );
       if (_questions.isEmpty) {
         _questions = _filterQuestions(
           dummyQuestions.where((q) => q.mode == mode).toList(),
         );
+        // ignore: avoid_print
+        print(
+          'StudySessionController.start fallback dummy count=${_questions.length} '
+          'domainId=$domainId subdomainId=$subdomainId',
+        );
       }
     } catch (error) {
       loadError = error.toString();
+      // ignore: avoid_print
+      print('StudySessionController.start error=$error');
       _questions = _filterQuestions(
         dummyQuestions.where((q) => q.mode == mode).toList(),
       );
