@@ -64,6 +64,12 @@ class _OnboardingExamScreenState extends State<OnboardingExamScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               const Text('ショート模試が完了しました！'),
+              const SizedBox(height: 8),
+              Text(
+                '推定スコア ${controller.summaryScore.toStringAsFixed(0)} '
+                '（ランク ${controller.summaryRank}）',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
               const SizedBox(height: 12),
               FilledButton(
                 onPressed: () => Navigator.of(context).pop(),

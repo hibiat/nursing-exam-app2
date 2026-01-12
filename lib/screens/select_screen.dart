@@ -23,10 +23,20 @@ class _SelectScreenState extends State<SelectScreen> {
         ? 'assets/taxonomy_required.json'
         : 'assets/taxonomy_general.json';
     final domains = await taxonomyService.loadDomains(asset);
-    final reviewCounts = await questionStateRepository.fetchDueCountsByDomain(
-      mode: widget.mode,
+    Map<String, int> reviewCounts = {};
+    bool reviewLoadFailed = false;
+    try {
+      reviewCounts = await questionStateRepository.fetchDueCountsByDomain(
+        mode: widget.mode,
+      );
+    } catch (_) {
+      reviewLoadFailed = true;
+    }
+    return _SelectScreenData(
+      domains: domains,
+      reviewCounts: reviewCounts,
+      reviewLoadFailed: reviewLoadFailed,
     );
-    return _SelectScreenData(domains: domains, reviewCounts: reviewCounts);
   }
 
   @override
@@ -58,9 +68,19 @@ class _SelectScreenState extends State<SelectScreen> {
           return const Center(child: Text('分類データがありません'));
         }
         return ListView.builder(
-          itemCount: domains.length,
+          itemCount: domains.length + (data.reviewLoadFailed ? 1 : 0),
           itemBuilder: (context, index) {
-            final domain = domains[index];
+            if (data.reviewLoadFailed && index == 0) {
+              return Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                child: Text(
+                  '復習数の取得に失敗しました。分類は表示されています。',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              );
+            }
+            final domainIndex = data.reviewLoadFailed ? index - 1 : index;
+            final domain = domains[domainIndex];
             final reviewCount = data.reviewCounts[domain.id] ?? 0;
             return ExpansionTile(
               title: Text(domain.name),
@@ -95,8 +115,10 @@ class _SelectScreenData {
   const _SelectScreenData({
     required this.domains,
     required this.reviewCounts,
+    required this.reviewLoadFailed,
   });
 
   final List<TaxonomyDomain> domains;
   final Map<String, int> reviewCounts;
+  final bool reviewLoadFailed;
 }

@@ -43,6 +43,16 @@ class OnboardingExamController extends ChangeNotifier {
 
   int get totalQuestions => questions.length;
 
+  double get summaryScore {
+    if (skillStates.isEmpty) return 50;
+    final scores = skillStates.values
+        .map((state) => scoreEngine.scoreFromTheta(state.theta))
+        .toList();
+    return scores.reduce((a, b) => a + b) / scores.length;
+  }
+
+  String get summaryRank => scoreEngine.rankFromScore(summaryScore);
+
   Future<void> start() async {
     isLoading = true;
     loadError = null;
