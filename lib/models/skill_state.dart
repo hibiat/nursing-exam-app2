@@ -1,15 +1,28 @@
 class SkillState {
   const SkillState({
-    required this.subdomainId,
+    required this.skillId,
     required this.theta,
     required this.nEff,
     required this.lastUpdatedAt,
   });
 
-  final String subdomainId;
+  final String skillId;
   final double theta;
   final double nEff;
   final DateTime lastUpdatedAt;
+
+  factory SkillState.fromFirestore(String id, Map<String, dynamic> data) {
+    final lastUpdatedRaw = data['lastUpdatedAt'];
+    final lastUpdatedAt = lastUpdatedRaw is DateTime
+        ? lastUpdatedRaw
+        : (lastUpdatedRaw as dynamic?)?.toDate() as DateTime?;
+    return SkillState(
+      skillId: id,
+      theta: (data['theta'] as num?)?.toDouble() ?? 0,
+      nEff: (data['nEff'] as num?)?.toDouble() ?? 0,
+      lastUpdatedAt: lastUpdatedAt ?? DateTime.fromMillisecondsSinceEpoch(0),
+    );
+  }
 
   Map<String, dynamic> toFirestore() {
     return {
@@ -25,7 +38,7 @@ class SkillState {
     DateTime? lastUpdatedAt,
   }) {
     return SkillState(
-      subdomainId: subdomainId,
+      skillId: skillId,
       theta: theta ?? this.theta,
       nEff: nEff ?? this.nEff,
       lastUpdatedAt: lastUpdatedAt ?? this.lastUpdatedAt,
