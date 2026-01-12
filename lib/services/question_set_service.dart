@@ -15,9 +15,12 @@ class QuestionSetService {
 
   Future<List<Question>> loadQuestionsFromStorage(String path) async {
     final ref = _storage.ref(path);
+    // ignore: avoid_print
+    print('QuestionSetService.loadQuestionsFromStorage path=$path');
     final data = await ref.getData();
     if (data == null) return [];
-
+    // ignore: avoid_print
+    print('QuestionSetService.loadQuestionsFromStorage bytes=${data.length}');
     final lines = const LineSplitter().convert(utf8.decode(data));
     return lines
         .where((line) => line.trim().isNotEmpty)
@@ -26,16 +29,25 @@ class QuestionSetService {
   }
 
   Future<String?> loadActiveSetIdForMode(String mode) async {
-  final snapshot = await _firestore
-      .collection('question_sets')
-      .where('active', isEqualTo: true)
-      .where('mode', isEqualTo: mode) // ★追加
-      .limit(1)
-      .get();
+    // ignore: avoid_print
+    print('QuestionSetService.loadActiveSetIdForMode mode=$mode');
+    final snapshot = await _firestore
+        .collection('question_sets')
+        .where('active', isEqualTo: true)
+        .where('mode', isEqualTo: mode)
+        .limit(1)
+        .get();
 
-  if (snapshot.docs.isEmpty) return null;
-  return snapshot.docs.first.id;
-}
+    if (snapshot.docs.isEmpty) {
+      // ignore: avoid_print
+      print('QuestionSetService.loadActiveSetIdForMode none found');
+      return null;
+    }
+    final setId = snapshot.docs.first.id;
+    // ignore: avoid_print
+    print('QuestionSetService.loadActiveSetIdForMode setId=$setId');
+    return setId;
+  }
 
   Future<List<Question>> loadActiveQuestions({required String mode}) async {
     final setId = await loadActiveSetIdForMode(mode);
