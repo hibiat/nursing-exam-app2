@@ -4,6 +4,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
 
+import '../firebase_options.dart';
+
 class FirebaseService {
   FirebaseService._();
 
@@ -24,11 +26,12 @@ class FirebaseService {
   /// - question_sets/{setId}/questions_general.jsonl
   /// - question_sets/{setId}/questions_required.jsonl
   Future<void> initialize() async {
-    if (kIsWeb) {
-      return;
-    }
     try {
-      await Firebase.initializeApp();
+      if (Firebase.apps.isEmpty) {
+        await Firebase.initializeApp(
+          options: DefaultFirebaseOptions.currentPlatform,
+        );
+      }
       if (auth.currentUser == null) {
         await auth.signInAnonymously();
       }
