@@ -140,6 +140,7 @@ class StudySessionController extends ChangeNotifier {
     required int responseTimeMs,
     required bool timeExpired,
     String? confidence,
+    bool advanceAfterSubmit = true,
   }) async {
     final question = currentQuestion;
     if (question == null) return;
@@ -215,7 +216,9 @@ class StudySessionController extends ChangeNotifier {
       }
     } finally {
       await _updateUnitProgress(question);
-      _pickNextQuestion();
+      if (advanceAfterSubmit) {
+        _pickNextQuestion();
+      }
       notifyListeners();
     }
   }
@@ -250,6 +253,11 @@ class StudySessionController extends ChangeNotifier {
       return;
     }
     currentQuestionId = nextId ?? (_questions.isNotEmpty ? _questions.first.id : null);
+  }
+
+  void advanceToNextQuestion() {
+    _pickNextQuestion();
+    notifyListeners();
   }
 
   List<Question> _filterQuestions(List<Question> source) {
