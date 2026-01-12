@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../repositories/user_settings_repository.dart';
 import '../state/study_session_controller.dart';
 import '../widgets/score_update_overlay.dart';
 
@@ -23,12 +24,15 @@ class StudyScreen extends StatefulWidget {
 
 class _StudyScreenState extends State<StudyScreen> {
   late final StudySessionController controller;
+  late final Future<void> _initFuture;
   Timer? timer;
   int elapsedMs = 0;
+  int remainingMs = 0;
   bool answered = false;
   String? selectedChoice;
   String? confidence;
-  static const int _timeLimitMs = 15000;
+  static const int _timerTickMs = 100;
+  int _timeLimitMs = UserSettingsRepository.defaultTimeLimitSeconds * 1000;
 
   @override
   void initState() {
@@ -40,17 +44,15 @@ class _StudyScreenState extends State<StudyScreen> {
       unitTarget: 5,
     );
     controller.addListener(_onUpdate);
-    controller.start();
-    timer = Timer.periodic(const Duration(milliseconds: 100), (_) {
-      if (!answered) {
-        setState(() {
-          elapsedMs += 100;
-        });
-        if (elapsedMs >= _timeLimitMs && !answered) {
-          _submit(chosen: null, isSkip: false, timeExpired: true);
-        }
-      }
-    });
+    _initFuture = _initialize();
+  }
+
+  Future<void> _initialize() async {
+    final settings = await UserSettingsRepository().fetchSettings();
+    _timeLimitMs = settings.timeLimitSeconds * 1000;
+    remainingMs = _timeLimitMs;
+    await controller.start();
+    _startTimer();
   }
 
   @override
@@ -67,6 +69,7 @@ class _StudyScreenState extends State<StudyScreen> {
       selectedChoice = null;
       confidence = null;
       elapsedMs = 0;
+      remainingMs = _timeLimitMs;
     });
   }
 
@@ -85,8 +88,41 @@ class _StudyScreenState extends State<StudyScreen> {
     );
   }
 
+  void _startTimer() {
+    timer?.cancel();
+    timer = Timer.periodic(const Duration(milliseconds: _timerTickMs), (_) {
+      if (answered || controller.showOverlay) return;
+      setState(() {
+        remainingMs = (remainingMs - _timerTickMs).clamp(0, _timeLimitMs);
+        elapsedMs = (_timeLimitMs - remainingMs).clamp(0, _timeLimitMs);
+      });
+      if (remainingMs <= 0 && !answered) {
+        _submit(chosen: null, isSkip: false, timeExpired: true);
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
+    return FutureBuilder<void>(
+      future: _initFuture,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState != ConnectionState.done) {
+          return const Scaffold(body: Center(child: CircularProgressIndicator()));
+        }
+        if (snapshot.hasError) {
+          return Scaffold(
+            body: Center(
+              child: Text('設定の読み込みに失敗しました: ${snapshot.error}'),
+            ),
+          );
+        }
+        return _buildContent(context);
+      },
+    );
+  }
+
+  Widget _buildContent(BuildContext context) {
     if (controller.isLoading) {
       return const Scaffold(
         body: Center(child: CircularProgressIndicator()),
@@ -95,7 +131,17 @@ class _StudyScreenState extends State<StudyScreen> {
     if (controller.loadError != null) {
       return Scaffold(
         body: Center(
-          child: Text('読み込みに失敗しました: ${controller.loadError}'),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('読み込みに失敗しました: ${controller.loadError}'),
+              const SizedBox(height: 12),
+              FilledButton(
+                onPressed: controller.start,
+                child: const Text('再試行'),
+              ),
+            ],
+          ),
         ),
       );
     }
@@ -107,7 +153,7 @@ class _StudyScreenState extends State<StudyScreen> {
       );
     }
 
-    final timeProgress = (elapsedMs / _timeLimitMs).clamp(0, 1).toDouble();
+    final timeProgress = (remainingMs / _timeLimitMs).clamp(0, 1).toDouble();
 
     return Scaffold(
       appBar: AppBar(
@@ -128,7 +174,7 @@ class _StudyScreenState extends State<StudyScreen> {
                 minHeight: 6,
               ),
               const SizedBox(height: 8),
-              Text('解答時間: ${(elapsedMs / 1000).toStringAsFixed(1)}秒'),
+              Text('残り時間: ${(remainingMs / 1000).toStringAsFixed(1)}秒'),
               const SizedBox(height: 24),
               ...question.choices.map(
                 (choice) => Padding(
@@ -180,10 +226,13 @@ class _StudyScreenState extends State<StudyScreen> {
           ),
           if (controller.showOverlay)
             ScoreUpdateOverlay(
-              rank: controller.currentRank,
-              lastRank: controller.lastRank,
-              subdomainScore: controller.currentScore,
+              rank: controller.overallRank,
+              lastRank: controller.lastOverallRank,
+              overallScore: controller.overallScore,
+              skillProgress: controller.latestSkillProgress,
               showStreakPraise: controller.showStreakPraise,
+              streakMessage: controller.streakMessage,
+              streakCount: controller.streakCount,
               requiredBorderLabel: controller.requiredBorderLabel,
               onClose: controller.dismissOverlay,
             ),

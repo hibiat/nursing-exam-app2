@@ -12,6 +12,7 @@ class Scheduler {
     required Map<String, QuestionState> questionStates,
     required Map<String, SkillState> skillStates,
     required DateTime now,
+    String Function(Question question)? skillScopeResolver,
   }) {
     if (candidates.isEmpty) return null;
 
@@ -35,15 +36,21 @@ class Scheduler {
       return _pickMostLapses(due, questionStates);
     }
 
+    if (withState.isNotEmpty && newOnes.isNotEmpty) {
+      if (Random().nextDouble() < 0.3) {
+        return _pickWeakSkill(newOnes, skillStates, skillScopeResolver) ?? newOnes.first.id;
+      }
+    }
+
+    if (newOnes.isNotEmpty) {
+      return _pickWeakSkill(newOnes, skillStates, skillScopeResolver) ?? newOnes.first.id;
+    }
+
     if (withState.isNotEmpty) {
       return _pickMostLapses(withState, questionStates);
     }
 
-    if (newOnes.isNotEmpty) {
-      return _pickWeakSkill(newOnes, skillStates) ?? newOnes.first.id;
-    }
-
-    return _pickWeakSkill(candidates, skillStates) ?? candidates.first.id;
+    return _pickWeakSkill(candidates, skillStates, skillScopeResolver) ?? candidates.first.id;
   }
 
   String _pickMostLapses(
@@ -58,11 +65,16 @@ class Scheduler {
     return questions.first.id;
   }
 
-  String? _pickWeakSkill(List<Question> questions, Map<String, SkillState> skillStates) {
+  String? _pickWeakSkill(
+    List<Question> questions,
+    Map<String, SkillState> skillStates,
+    String Function(Question question)? skillScopeResolver,
+  ) {
     if (questions.isEmpty) return null;
     final scored = questions
         .map((question) {
-          final theta = skillStates[question.subdomainId]?.theta ?? 0;
+          final scopeId = skillScopeResolver?.call(question) ?? question.subdomainId;
+          final theta = skillStates[scopeId]?.theta ?? 0;
           return MapEntry(question, theta);
         })
         .toList()

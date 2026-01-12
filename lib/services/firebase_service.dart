@@ -18,7 +18,10 @@ class FirebaseService {
   /// Firestore collections (read/write rules):
   /// - users/{uid}/attempts/{attemptId} (user read/write)
   /// - users/{uid}/question_state/{questionId} (user read/write)
-  /// - users/{uid}/skill_state/{subdomainId} (user read/write)
+  /// - users/{uid}/skill_state/{skillId} (user read/write)
+  /// - users/{uid}/profile/main (user read/write)
+  /// - users/{uid}/settings/app (user read/write)
+  /// - users/{uid}/streak_state/main (user read/write)
   /// - question_sets/{setId} (read-only)
   /// - stats/{statId} (read-only, future difficulty aggregation)
   ///
