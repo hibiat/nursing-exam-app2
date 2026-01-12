@@ -1,0 +1,1 @@
+{"id":"req-001","mode":"required","domain_id":"required.core","subdomain_id":"required.core.01","format":"single","stem":"健康の定義として正しいものはどれか。","choices":["病気がない状態","身体的・精神的・社会的に良好な状態","検査値が正常な状態"],"answer":"身体的・精神的・社会的に良好な状態","difficulty":0.5,"case_id":null,"year":null,"explain_short":null,"explain_long":null,"meta":{}}
