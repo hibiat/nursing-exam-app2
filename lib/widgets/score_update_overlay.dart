@@ -234,7 +234,7 @@ class _SkillProgressTile extends StatelessWidget {
             : delta.toStringAsFixed(1);
     final deltaColor = delta >= 0 ? theme.colorScheme.primary : theme.colorScheme.error;
     final animatedTarget = startAnimation
-        ? (delta == 0 ? (current + 0.5).clamp(0, 100) : current)
+        ? (delta == 0 ? (current + 0.5).clamp(0, 100).toDouble() : current)
         : previous;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
