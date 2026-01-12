@@ -92,6 +92,13 @@ class _StudyScreenState extends State<StudyScreen> {
         body: Center(child: CircularProgressIndicator()),
       );
     }
+    if (controller.loadError != null) {
+      return Scaffold(
+        body: Center(
+          child: Text('読み込みに失敗しました: ${controller.loadError}'),
+        ),
+      );
+    }
 
     final question = controller.currentQuestion;
     if (question == null) {

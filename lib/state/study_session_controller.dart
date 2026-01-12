@@ -84,13 +84,25 @@ class StudySessionController extends ChangeNotifier {
       // ignore: avoid_print
       print('StudySessionController.start loaded count=${loaded.length}');
       _questions = _filterQuestions(loaded);
+      // ignore: avoid_print
+      print(
+        'StudySessionController.start filtered count=${_questions.length} '
+        'domainId=$domainId subdomainId=$subdomainId',
+      );
       if (_questions.isEmpty) {
         _questions = _filterQuestions(
           dummyQuestions.where((q) => q.mode == mode).toList(),
         );
+        // ignore: avoid_print
+        print(
+          'StudySessionController.start fallback dummy count=${_questions.length} '
+          'domainId=$domainId subdomainId=$subdomainId',
+        );
       }
     } catch (error) {
       loadError = error.toString();
+      // ignore: avoid_print
+      print('StudySessionController.start error=$error');
       _questions = _filterQuestions(
         dummyQuestions.where((q) => q.mode == mode).toList(),
       );
