@@ -3,9 +3,12 @@ import 'package:flutter/material.dart';
 import '../models/user_profile.dart';
 import '../repositories/user_profile_repository.dart';
 import '../widgets/score_summary_card.dart';
+import '../widgets/study_goal_card.dart';
+import '../widgets/passing_prediction_card.dart';
 import 'onboarding_exam_screen.dart';
 import 'select_screen.dart';
 import 'settings_screen.dart';
+import 'study_screen.dart'; // 新規追加
 import '../services/auth_service.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -29,7 +32,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _initAuth() async {
     final user = await AuthService.ensureSignedIn();
-    // ignore: avoid_print
     print('Signed in uid=${user.uid}');
     _profile = await userProfileRepository.fetchProfile();
   }
@@ -76,11 +78,6 @@ class _HomeScreenState extends State<HomeScreen> {
             appBar: AppBar(
               title: const Text('看護師国家試験アプリ'),
               actions: [
-                if (!(_profile?.onboardingCompleted ?? false))
-                  TextButton(
-                    onPressed: _startOnboardingExam,
-                    child: const Text('ショート模試'),
-                  ),
                 IconButton(
                   icon: const Icon(Icons.settings),
                   tooltip: '設定',
@@ -91,29 +88,90 @@ class _HomeScreenState extends State<HomeScreen> {
                   },
                 ),
               ],
-              bottom: PreferredSize(
-                preferredSize: const Size.fromHeight(200),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    ScoreSummaryCard(
-                      onStartOnboarding:
-                          _profile?.onboardingCompleted == true ? null : _startOnboardingExam,
-                    ),
-                    const TabBar(
-                      tabs: [
-                        Tab(text: '必修'),
-                        Tab(text: '一般・状況設定'),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
             ),
-            body: const TabBarView(
+            body: Column(
               children: [
-                SelectScreen(mode: 'required'),
-                SelectScreen(mode: 'general'),
+                // スクロール可能なヘッダーセクション
+                Expanded(
+                  child: CustomScrollView(
+                    slivers: [
+                      // 合格予測カード
+                      SliverToBoxAdapter(
+                        child: PassingPredictionCard(),
+                      ),
+                      
+                      // 今日の学習目標カード
+                      SliverToBoxAdapter(
+                        child: StudyGoalCard(
+                          onStartStudy: (mode, domainId, subdomainId) {
+                            // 学習画面へ遷移
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => StudyScreen(
+                                  mode: mode,
+                                  domainId: domainId,
+                                  subdomainId: subdomainId,
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                      
+                      // スコアサマリー
+                      SliverToBoxAdapter(
+                        child: ScoreSummaryCard(
+                          onStartOnboarding:
+                              _profile?.onboardingCompleted == true ? null : _startOnboardingExam,
+                        ),
+                      ),
+                      
+                      // タブバー(セクション見出しを追加)
+                      SliverToBoxAdapter(
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 24, 16, 8),
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.list_alt,
+                                size: 20,
+                                color: Theme.of(context).colorScheme.primary,
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                '領域を選んで学習する',
+                                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      SliverPersistentHeader(
+                        pinned: true,
+                        delegate: _SliverTabBarDelegate(
+                          const TabBar(
+                            tabs: [
+                              Tab(text: '必修'),
+                              Tab(text: '一般・状況設定'),
+                            ],
+                          ),
+                        ),
+                      ),
+                      
+                      // タブビュー内容をSliverに
+                      SliverFillRemaining(
+                        child: TabBarView(
+                          children: const [
+                            SelectScreen(mode: 'required'),
+                            SelectScreen(mode: 'general'),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ],
             ),
           ),
@@ -135,7 +193,7 @@ class _HomeScreenState extends State<HomeScreen> {
         builder: (context) {
           return AlertDialog(
             scrollable: true,
-            title: const Text('ショート模試に挑戦しますか？'),
+            title: const Text('ショート模試を始めますか?'),
             content: const Text(
               '評価ではなく、今の実力の目安を知るためのミニテストです。\n'
               '10問ほど解いて、初期スコアを推定します。\n'
@@ -148,7 +206,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               FilledButton(
                 onPressed: () => Navigator.of(context).pop(true),
-                child: const Text('今すぐ挑戦'),
+                child: const Text('今すぐ実施'),
               ),
             ],
           );
@@ -187,5 +245,30 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() {
       _profile = updatedProfile;
     });
+  }
+}
+
+// TabBarをSliverで使うためのDelegate
+class _SliverTabBarDelegate extends SliverPersistentHeaderDelegate {
+  _SliverTabBarDelegate(this.tabBar);
+
+  final TabBar tabBar;
+
+  @override
+  double get minExtent => tabBar.preferredSize.height;
+  @override
+  double get maxExtent => tabBar.preferredSize.height;
+
+  @override
+  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
+    return Container(
+      color: Theme.of(context).scaffoldBackgroundColor,
+      child: tabBar,
+    );
+  }
+
+  @override
+  bool shouldRebuild(_SliverTabBarDelegate oldDelegate) {
+    return false;
   }
 }

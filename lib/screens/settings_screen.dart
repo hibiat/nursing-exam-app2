@@ -21,7 +21,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _updateTimeLimit(int seconds) async {
-    final updated = UserSettings(timeLimitSeconds: seconds);
+    final currentSettings = await _settingsFuture;
+    final updated = UserSettings(
+      timeLimitSeconds: seconds,
+      showTimer: currentSettings.showTimer,
+    );
+    await repository.saveSettings(updated);
+    setState(() {
+      _settingsFuture = Future.value(updated);
+    });
+  }
+
+  Future<void> _updateShowTimer(bool show) async {
+    final currentSettings = await _settingsFuture;
+    final updated = UserSettings(
+      timeLimitSeconds: currentSettings.timeLimitSeconds,
+      showTimer: show,
+    );
     await repository.saveSettings(updated);
     setState(() {
       _settingsFuture = Future.value(updated);
@@ -58,27 +74,87 @@ class _SettingsScreenState extends State<SettingsScreen> {
           final settings = snapshot.data ??
               const UserSettings(
                 timeLimitSeconds: UserSettingsRepository.defaultTimeLimitSeconds,
+                showTimer: false, // デフォルトは非表示
               );
           return ListView(
             padding: const EdgeInsets.all(16),
             children: [
-              Text('1問あたりの制限時間', style: Theme.of(context).textTheme.titleMedium),
-              const SizedBox(height: 8),
-              ...[60, 90, 120].map(
-                (seconds) => RadioListTile<int>(
-                  title: Text('${seconds}秒'),
-                  value: seconds,
-                  groupValue: settings.timeLimitSeconds,
-                  onChanged: (value) {
-                    if (value == null) return;
-                    _updateTimeLimit(value);
-                  },
+              // タイマー表示設定(新規)
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'タイマー表示',
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        '本番を意識した学習をしたい場合にONにしてください',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: Theme.of(context).colorScheme.onSurfaceVariant,
+                            ),
+                      ),
+                      const SizedBox(height: 12),
+                      SwitchListTile(
+                        title: const Text('タイマーを表示する(本番モード)'),
+                        subtitle: const Text('時間を意識した学習ができます'),
+                        value: settings.showTimer,
+                        onChanged: _updateShowTimer,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              
+              // 制限時間設定
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '1問あたりの制限時間',
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'タイマー表示がONの時のみ有効です',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: Theme.of(context).colorScheme.onSurfaceVariant,
+                            ),
+                      ),
+                      const SizedBox(height: 12),
+                      ...[60, 90, 120].map(
+                        (seconds) => RadioListTile<int>(
+                          title: Text('${seconds}秒'),
+                          subtitle: seconds == 90
+                              ? const Text('推奨: 国試の平均時間')
+                              : null,
+                          value: seconds,
+                          groupValue: settings.timeLimitSeconds,
+                          onChanged: settings.showTimer
+                              ? (value) {
+                                  if (value == null) return;
+                                  _updateTimeLimit(value);
+                                }
+                              : null, // タイマーOFFの時は変更不可
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
               const SizedBox(height: 16),
               Text(
-                '※ 国試の制限時間・問題数から妥当な秒数を後で調整可能です。',
-                style: Theme.of(context).textTheme.bodySmall,
+                '※ 国試の制限時間は問題数から逆算した秒数です。後で調整可能です。',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
               ),
             ],
           );

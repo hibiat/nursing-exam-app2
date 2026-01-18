@@ -36,6 +36,7 @@ class _StudyScreenState extends State<StudyScreen> {
   bool lastTimeExpired = false;
   static const int _timerTickMs = 1000;
   int _timeLimitMs = UserSettingsRepository.defaultTimeLimitSeconds * 1000;
+  bool _showTimer = false; // 新規追加: タイマー表示ON/OFF
   String? _activeQuestionId;
   Question? _displayQuestion;
 
@@ -55,6 +56,7 @@ class _StudyScreenState extends State<StudyScreen> {
   Future<void> _initialize() async {
     final settings = await UserSettingsRepository().fetchSettings();
     _timeLimitMs = settings.timeLimitSeconds * 1000;
+    _showTimer = settings.showTimer; // 新規追加: タイマー表示設定を読み込む
     remainingMs = _timeLimitMs;
     await controller.start();
   }
@@ -273,7 +275,7 @@ class _StudyScreenState extends State<StudyScreen> {
                           isSkip: true,
                           timeExpired: false,
                         ),
-                child: const Text('わからない（スキップ）'),
+                child: const Text('わからない(スキップ)'),
               ),
               if (answered) ...[
                 const SizedBox(height: 16),
@@ -294,7 +296,7 @@ class _StudyScreenState extends State<StudyScreen> {
                 ),
               ],
               const SizedBox(height: 16),
-              Text('自信度（任意）', style: Theme.of(context).textTheme.titleSmall),
+              Text('自信度(任意)', style: Theme.of(context).textTheme.titleSmall),
               const SizedBox(height: 8),
               Row(
                 children: [
@@ -316,6 +318,7 @@ class _StudyScreenState extends State<StudyScreen> {
                 timeProgress: timeProgress,
                 remainingSeconds: (remainingMs / 1000).ceil(),
                 timeExpired: lastTimeExpired,
+                showTimer: _showTimer, // 新規追加: タイマー表示設定を渡す
               ),
             ],
           ),
@@ -374,7 +377,7 @@ class _AnswerFeedbackCard extends StatelessWidget {
             : theme.colorScheme.error);
     final explanationText = explanation?.trim().isNotEmpty == true
         ? explanation!
-        : '解説は準備中です。';
+        : '解説は準備中です';
     return Card(
       color: theme.colorScheme.surfaceVariant,
       child: Padding(
@@ -392,7 +395,7 @@ class _AnswerFeedbackCard extends StatelessWidget {
             const SizedBox(height: 8),
             if (timeExpired)
               Text(
-                'この結果は誤答として扱いません。',
+                'この結果は記録として扱いません。',
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
@@ -417,14 +420,21 @@ class _TimerFooter extends StatelessWidget {
     required this.timeProgress,
     required this.remainingSeconds,
     required this.timeExpired,
+    required this.showTimer, // 新規追加
   });
 
   final double timeProgress;
   final int remainingSeconds;
   final bool timeExpired;
+  final bool showTimer; // 新規追加
 
   @override
   Widget build(BuildContext context) {
+    // タイマー表示がOFFの場合は何も表示しない
+    if (!showTimer) {
+      return const SizedBox.shrink();
+    }
+
     final theme = Theme.of(context);
     final label = timeExpired ? '目安時間に到達' : '1問の目安';
     final subLabel = timeExpired ? 'この時間は参考です' : '時間は参考です';
