@@ -140,18 +140,35 @@ class _ScoreSummaryCardLayout extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final headlineStyle = theme.textTheme.displaySmall?.copyWith(
+    final headlineStyle = theme.textTheme.displayMedium?.copyWith(
       fontWeight: FontWeight.bold,
       letterSpacing: 2,
     );
     return Card(
       margin: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+      elevation: 0.5,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.fromLTRB(18, 16, 18, 18),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('現在の実力', style: theme.textTheme.titleSmall),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    '現在の実力',
+                    style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+                  ),
+                ),
+                Text(
+                  '今日も少し前進',
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
             const SizedBox(height: 12),
             Row(
               children: [
@@ -189,13 +206,18 @@ class _ScoreSummaryCardLayout extends StatelessWidget {
                 ),
               ),
             ],
-            if (onStartOnboarding != null && requiredRank == '—' && generalRank == '—') ...[
+            if (onStartOnboarding != null) ...[
               const SizedBox(height: 4),
               Align(
                 alignment: Alignment.centerLeft,
-                child: TextButton(
+                child: TextButton.icon(
                   onPressed: onStartOnboarding,
-                  child: const Text('初期スコアを設定する'),
+                  style: TextButton.styleFrom(
+                    padding: EdgeInsets.zero,
+                    visualDensity: VisualDensity.compact,
+                  ),
+                  icon: const Icon(Icons.auto_awesome, size: 16),
+                  label: const Text('初期スコアを推定する（いつでもOK）'),
                 ),
               ),
             ],
@@ -227,7 +249,10 @@ class _ScoreColumn extends StatelessWidget {
         const SizedBox(height: 6),
         Text(rank, style: rankStyle),
         const SizedBox(height: 4),
-        Text('総合ランク', style: theme.textTheme.bodySmall),
+        Text(
+          '総合ランク',
+          style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+        ),
       ],
     );
   }

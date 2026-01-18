@@ -191,18 +191,30 @@ class _StudyScreenState extends State<StudyScreen> {
           ListView(
             padding: const EdgeInsets.all(16),
             children: [
-              Text(
-                question.stem,
-                style: Theme.of(context).textTheme.titleLarge,
+              Card(
+                elevation: 0.5,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '問題',
+                        style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                              color: Theme.of(context).colorScheme.onSurfaceVariant,
+                            ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        question.stem,
+                        style: Theme.of(context).textTheme.titleLarge,
+                      ),
+                    ],
+                  ),
+                ),
               ),
-              const SizedBox(height: 16),
-              LinearProgressIndicator(
-                value: timeProgress,
-                minHeight: 6,
-              ),
-              const SizedBox(height: 8),
-              Text('残り時間: ${(remainingMs / 1000).ceil()}秒'),
-              const SizedBox(height: 24),
+              const SizedBox(height: 20),
               ...question.choices.map(
                 (choice) => Padding(
                   padding: const EdgeInsets.only(bottom: 12),
@@ -215,10 +227,20 @@ class _StudyScreenState extends State<StudyScreen> {
                               timeExpired: false,
                             ),
                     style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
-                      backgroundColor: answered && choice == question.answer
-                          ? Theme.of(context).colorScheme.primaryContainer
+                      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 14),
+                      backgroundColor: answered
+                          ? (choice == question.answer
+                              ? Theme.of(context).colorScheme.primaryContainer
+                              : (selectedChoice == choice
+                                  ? Theme.of(context).colorScheme.errorContainer
+                                  : null))
                           : null,
+                      side: BorderSide(
+                        color: Theme.of(context).colorScheme.outlineVariant,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
                     ),
                     child: Align(
                       alignment: Alignment.centerLeft,
@@ -234,7 +256,7 @@ class _StudyScreenState extends State<StudyScreen> {
                               selectedChoice == choice &&
                               selectedChoice != question.answer)
                             Icon(
-                              Icons.cancel,
+                              Icons.close,
                               color: Theme.of(context).colorScheme.error,
                             ),
                         ],
@@ -243,7 +265,13 @@ class _StudyScreenState extends State<StudyScreen> {
                   ),
                 ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 4),
+              _TimerFooter(
+                timeProgress: timeProgress,
+                remainingSeconds: (remainingMs / 1000).ceil(),
+                timeExpired: lastTimeExpired,
+              ),
+              const SizedBox(height: 4),
               TextButton(
                 onPressed: answered
                     ? null
@@ -332,7 +360,7 @@ class _AnswerFeedbackCard extends StatelessWidget {
     final theme = Theme.of(context);
     String status;
     if (timeExpired) {
-      status = '時間切れ';
+      status = '時間の目安を超過';
     } else if (wasSkip) {
       status = 'スキップ';
     } else if (isCorrect) {
@@ -342,7 +370,9 @@ class _AnswerFeedbackCard extends StatelessWidget {
     }
     final statusColor = isCorrect
         ? theme.colorScheme.primary
-        : (wasSkip || timeExpired ? theme.colorScheme.onSurface : theme.colorScheme.error);
+        : (wasSkip || timeExpired
+            ? theme.colorScheme.onSurfaceVariant
+            : theme.colorScheme.error);
     final explanationText = explanation?.trim().isNotEmpty == true
         ? explanation!
         : '解説は準備中です。';
@@ -361,6 +391,13 @@ class _AnswerFeedbackCard extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 8),
+            if (timeExpired)
+              Text(
+                'この結果は誤答として扱いません。',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
             Text('正解: $correctAnswer'),
             if (selectedChoice != null && !wasSkip && !timeExpired)
               Text('あなたの回答: $selectedChoice'),
@@ -372,6 +409,62 @@ class _AnswerFeedbackCard extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _TimerFooter extends StatelessWidget {
+  const _TimerFooter({
+    required this.timeProgress,
+    required this.remainingSeconds,
+    required this.timeExpired,
+  });
+
+  final double timeProgress;
+  final int remainingSeconds;
+  final bool timeExpired;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final label = timeExpired ? '目安時間に到達' : '1問の目安';
+    final subLabel = timeExpired ? 'この時間は参考です' : '時間は参考です';
+    final progressColor = timeExpired
+        ? theme.colorScheme.onSurfaceVariant
+        : theme.colorScheme.primary.withOpacity(0.5);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(Icons.timer_outlined, size: 16, color: theme.colorScheme.onSurfaceVariant),
+            const SizedBox(width: 6),
+            Text(label, style: theme.textTheme.labelMedium),
+            const Spacer(),
+            Text(
+              'あと$remainingSeconds秒',
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(999),
+          child: LinearProgressIndicator(
+            value: timeProgress,
+            minHeight: 4,
+            backgroundColor: theme.colorScheme.surfaceVariant,
+            valueColor: AlwaysStoppedAnimation(progressColor),
+          ),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          subLabel,
+          style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+        ),
+      ],
     );
   }
 }
