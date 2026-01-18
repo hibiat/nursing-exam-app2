@@ -265,13 +265,6 @@ class _StudyScreenState extends State<StudyScreen> {
                   ),
                 ),
               ),
-              const SizedBox(height: 4),
-              _TimerFooter(
-                timeProgress: timeProgress,
-                remainingSeconds: (remainingMs / 1000).ceil(),
-                timeExpired: lastTimeExpired,
-              ),
-              const SizedBox(height: 4),
               TextButton(
                 onPressed: answered
                     ? null
@@ -317,6 +310,12 @@ class _StudyScreenState extends State<StudyScreen> {
                     onSelected: (_) => setState(() => confidence = 'low'),
                   ),
                 ],
+              ),
+              const SizedBox(height: 12),
+              _TimerFooter(
+                timeProgress: timeProgress,
+                remainingSeconds: (remainingMs / 1000).ceil(),
+                timeExpired: lastTimeExpired,
               ),
             ],
           ),
