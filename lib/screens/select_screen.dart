@@ -175,7 +175,7 @@ class _DomainCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final subtitleText = reviewCount > 0 ? '復習 $reviewCount 問' : subtitle;
+    final subtitleText = reviewCount > 0 ? '復習 $reviewCount 問' : null;
     final badge = reviewCount > 0
         ? Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -218,13 +218,15 @@ class _DomainCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(title, style: theme.textTheme.titleMedium),
-                    const SizedBox(height: 4),
-                    Text(
-                      subtitleText,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
+                    if (subtitleText != null) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        subtitleText,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
                       ),
-                    ),
+                    ],
                   ],
                 ),
               ),
