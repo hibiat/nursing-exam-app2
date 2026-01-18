@@ -103,6 +103,7 @@ class _SelectScreenState extends State<SelectScreen> {
               final reviewCount = data.reviewCounts[domain.id] ?? 0;
               return _DomainCard(
                 title: domain.name,
+                subtitle: '領域ごとに5問ずつ',
                 reviewCount: reviewCount,
                 icon: Icons.favorite_border,
                 onTap: () {
@@ -122,6 +123,7 @@ class _SelectScreenState extends State<SelectScreen> {
             final requiredItem = requiredItems[requiredIndex];
             return _DomainCard(
               title: requiredItem.label,
+              subtitle: '必修ユニット',
               reviewCount: 0,
               icon: Icons.local_hospital_outlined,
               onTap: () {
@@ -158,12 +160,14 @@ class _SelectScreenData {
 class _DomainCard extends StatelessWidget {
   const _DomainCard({
     required this.title,
+    required this.subtitle,
     required this.reviewCount,
     required this.icon,
     this.onTap,
   });
 
   final String title;
+  final String subtitle;
   final int reviewCount;
   final IconData icon;
   final VoidCallback? onTap;
