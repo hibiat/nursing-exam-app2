@@ -104,6 +104,7 @@ class _SelectScreenState extends State<SelectScreen> {
               return _DomainCard(
                 title: domain.name,
                 reviewCount: reviewCount,
+                icon: Icons.favorite_border,
                 onTap: () {
                   Navigator.of(context).push(
                     MaterialPageRoute(
@@ -122,6 +123,7 @@ class _SelectScreenState extends State<SelectScreen> {
             return _DomainCard(
               title: requiredItem.label,
               reviewCount: 0,
+              icon: Icons.local_hospital_outlined,
               onTap: () {
                 Navigator.of(context).push(
                   MaterialPageRoute(
@@ -157,23 +159,81 @@ class _DomainCard extends StatelessWidget {
   const _DomainCard({
     required this.title,
     required this.reviewCount,
+    required this.icon,
     this.onTap,
   });
 
   final String title;
   final int reviewCount;
+  final IconData icon;
   final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    final subtitle = reviewCount > 0 ? Text('復習 $reviewCount 問') : null;
+    final theme = Theme.of(context);
+    final subtitleText = reviewCount > 0 ? '復習 $reviewCount 問' : null;
+    final badge = reviewCount > 0
+        ? Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.primaryContainer,
+              borderRadius: BorderRadius.circular(999),
+            ),
+            child: Text(
+              '復習 $reviewCount',
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: theme.colorScheme.onPrimaryContainer,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          )
+        : null;
     return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      child: ListTile(
-        title: Text(title),
-        subtitle: subtitle,
-        trailing: const Icon(Icons.chevron_right),
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      elevation: 0.5,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
         onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          child: Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.surfaceVariant,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Icon(icon, color: theme.colorScheme.primary),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title, style: theme.textTheme.titleMedium),
+                    if (subtitleText != null) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        subtitleText,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              if (badge != null) ...[
+                badge,
+                const SizedBox(width: 8),
+              ],
+              const Icon(Icons.chevron_right),
+            ],
+          ),
+        ),
       ),
     );
   }

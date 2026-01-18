@@ -77,9 +77,15 @@ class _ScoreUpdateOverlayState extends State<ScoreUpdateOverlay>
     super.dispose();
   }
 
+  double _deltaFor(SkillProgress progress) {
+    return progress.currentScore - progress.previousScore;
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final sortedProgress = [...widget.skillProgress]
+      ..sort((a, b) => _deltaFor(b).abs().compareTo(_deltaFor(a).abs()));
     return Positioned.fill(
       child: Material(
         color: Colors.black54,
@@ -153,7 +159,7 @@ class _ScoreUpdateOverlayState extends State<ScoreUpdateOverlay>
                     const SizedBox(height: 8),
                     SizedBox(
                       height: 240,
-                      child: widget.skillProgress.isEmpty
+                      child: sortedProgress.isEmpty
                           ? Center(
                               child: Text(
                                 'スキルデータがありません',
@@ -162,14 +168,16 @@ class _ScoreUpdateOverlayState extends State<ScoreUpdateOverlay>
                             )
                           : SingleChildScrollView(
                               child: Column(
-                                children: widget.skillProgress
-                                    .map(
-                                      (progress) => _SkillProgressTile(
-                                        progress: progress,
-                                        startAnimation: _startBars,
-                                      ),
-                                    )
-                                    .toList(),
+                                children: [
+                                  for (var i = 0; i < sortedProgress.length; i++) ...[
+                                    _SkillProgressTile(
+                                      progress: sortedProgress[i],
+                                      startAnimation: _startBars,
+                                    ),
+                                    if (i != sortedProgress.length - 1)
+                                      const SizedBox(height: 10),
+                                  ],
+                                ],
                               ),
                             ),
                     ),
@@ -228,41 +236,67 @@ class _SkillProgressTile extends StatelessWidget {
     final current = progress.currentScore;
     final delta = current - previous;
     final deltaLabel = delta == 0
-        ? '±0'
+        ? '±0.0'
         : delta > 0
             ? '+${delta.toStringAsFixed(1)}'
             : delta.toStringAsFixed(1);
-    final deltaColor = delta >= 0 ? theme.colorScheme.primary : theme.colorScheme.error;
+    final deltaColor = delta > 0
+        ? theme.colorScheme.primary
+        : (delta < 0 ? theme.colorScheme.tertiary : theme.colorScheme.outline);
+    final deltaIcon = delta > 0
+        ? Icons.arrow_upward
+        : (delta < 0 ? Icons.arrow_downward : Icons.remove);
     final animatedTarget = startAnimation
         ? (delta == 0 ? (current + 0.5).clamp(0, 100).toDouble() : current)
         : previous;
+    final barColor = delta > 0
+        ? theme.colorScheme.primary
+        : (delta < 0 ? theme.colorScheme.tertiary : theme.colorScheme.outlineVariant);
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 4),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
-                child: Text(
-                  progress.label,
-                  style: theme.textTheme.bodySmall,
+                child: Tooltip(
+                  message: progress.label,
+                  child: Text(
+                    progress.label,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
-              ),
-              Text(
-                '${previous.toStringAsFixed(0)} → ${current.toStringAsFixed(0)}',
-                style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.primary),
               ),
               const SizedBox(width: 8),
               AnimatedOpacity(
                 opacity: startAnimation ? 1 : 0,
                 duration: const Duration(milliseconds: 220),
-                child: Text(
-                  deltaLabel,
-                  style: theme.textTheme.bodySmall?.copyWith(color: deltaColor),
+                child: Row(
+                  children: [
+                    Icon(deltaIcon, size: 14, color: deltaColor),
+                    const SizedBox(width: 2),
+                    Text(
+                      deltaLabel,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: deltaColor,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            '${previous.toStringAsFixed(0)} → ${current.toStringAsFixed(0)}',
+            style: theme.textTheme.labelSmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
           ),
           const SizedBox(height: 6),
           TweenAnimationBuilder<double>(
@@ -284,6 +318,7 @@ class _SkillProgressTile extends StatelessWidget {
                       value: (value / 100).clamp(0, 1),
                       minHeight: 10,
                       backgroundColor: Colors.transparent,
+                      valueColor: AlwaysStoppedAnimation(barColor),
                     ),
                   ],
                 ),

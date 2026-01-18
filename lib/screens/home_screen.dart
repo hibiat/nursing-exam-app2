@@ -134,8 +134,13 @@ class _HomeScreenState extends State<HomeScreen> {
         context: context,
         builder: (context) {
           return AlertDialog(
+            scrollable: true,
             title: const Text('ショート模試に挑戦しますか？'),
-            content: const Text('10問ほど解いて、初期スコアを推定します。'),
+            content: const Text(
+              '評価ではなく、今の実力の目安を知るためのミニテストです。\n'
+              '10問ほど解いて、初期スコアを推定します。\n'
+              '後からいつでも実施できます。',
+            ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.of(context).pop(false),
