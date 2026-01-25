@@ -74,12 +74,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
           final settings = snapshot.data ??
               const UserSettings(
                 timeLimitSeconds: UserSettingsRepository.defaultTimeLimitSeconds,
-                showTimer: false, // デフォルトは非表示
+                showTimer: false,
               );
           return ListView(
             padding: const EdgeInsets.all(16),
             children: [
-              // タイマー表示設定(新規)
               Card(
                 child: Padding(
                   padding: const EdgeInsets.all(16),
@@ -142,7 +141,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                   if (value == null) return;
                                   _updateTimeLimit(value);
                                 }
-                              : null, // タイマーOFFの時は変更不可
+                              : null,
                         ),
                       ),
                     ],

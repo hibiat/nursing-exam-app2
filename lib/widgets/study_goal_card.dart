@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import '../constants/app_colors.dart';
+import '../constants/encouragement_messages.dart';
+import '../services/user_score_service.dart';
+import '../services/taxonomy_service.dart';
 
 /// 今日の学習目標を表示するカード
 class StudyGoalCard extends StatelessWidget {
@@ -10,29 +13,130 @@ class StudyGoalCard extends StatelessWidget {
 
   final void Function(String mode, String domainId, String subdomainId) onStartStudy;
 
-  // TODO: 実際のデータから生成
-  _StudyGoalData _getGoalData() {
-    // 仮のデータ
-    return _StudyGoalData(
-      mode: 'required',
-      domainId: 'basic',
-      subdomainId: 'all',
-      recommendedQuestions: 10,
-      reason: '昨日は基礎看護が弱かったので',
-      displayName: '必修問題',
-      encouragement: '今日もお疲れさま! 一緒に頑張ろう 😊',
+  @override
+  Widget build(BuildContext context) {
+    final userScoreService = UserScoreService();
+
+    return FutureBuilder<_StudyGoalData>(
+      future: _generateGoalData(userScoreService),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return Card(
+            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Container(
+              height: 180,
+              alignment: Alignment.center,
+              child: const CircularProgressIndicator(),
+            ),
+          );
+        }
+
+        if (snapshot.hasError) {
+          return Card(
+            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Text('データ取得エラー: ${snapshot.error}'),
+            ),
+          );
+        }
+
+        final data = snapshot.data!;
+        return _StudyGoalCardContent(
+          data: data,
+          onStartStudy: onStartStudy,
+        );
+      },
     );
   }
 
+  Future<_StudyGoalData> _generateGoalData(UserScoreService service) async {
+    // 弱点領域を分析
+    final weakDomain = await service.analyzeWeakestDomain();
+
+    if (weakDomain != null) {
+      // 弱点がある場合、その領域を推奨
+      return _StudyGoalData(
+        mode: weakDomain.isRequired ? 'required' : 'general',
+        domainId: weakDomain.isRequired ? weakDomain.domainId : weakDomain.domainId,
+        subdomainId: weakDomain.isRequired ? weakDomain.domainId : 'all',
+        recommendedQuestions: 10,
+        reason: '${weakDomain.domainName}が弱点です',
+        displayName: weakDomain.isRequired ? '必修: ${weakDomain.domainName}' : weakDomain.domainName,
+        encouragement: EncouragementMessages.randomStudyStart(),
+      );
+    }
+
+    // 弱点がない場合、実際に存在する領域からランダムに選ぶ
+    try {
+      final taxonomyService = TaxonomyService();
+      final isRequired = DateTime.now().millisecondsSinceEpoch % 2 == 0;
+      
+      if (isRequired) {
+        // 必修の場合
+        final domains = await taxonomyService.loadDomains('assets/taxonomy_required.json');
+        if (domains.isNotEmpty && domains.first.subdomains.isNotEmpty) {
+          final subdomain = domains.first.subdomains.first;
+          return _StudyGoalData(
+            mode: 'required',
+            domainId: domains.first.id,
+            subdomainId: subdomain.id,
+            recommendedQuestions: 10,
+            reason: 'バランスよく学習しましょう',
+            displayName: '必修: ${subdomain.name}',
+            encouragement: EncouragementMessages.randomStudyStart(),
+          );
+        }
+      } else {
+        // 一般の場合
+        final domains = await taxonomyService.loadDomains('assets/taxonomy_general.json');
+        if (domains.isNotEmpty) {
+          final domain = domains.first;
+          return _StudyGoalData(
+            mode: 'general',
+            domainId: domain.id,
+            subdomainId: 'all',
+            recommendedQuestions: 10,
+            reason: 'バランスよく学習しましょう',
+            displayName: domain.name,
+            encouragement: EncouragementMessages.randomStudyStart(),
+          );
+        }
+      }
+    } catch (e) {
+      print('StudyGoalCard._generateGoalData error: $e');
+    }
+
+    // フォールバック: データ取得失敗時
+    return _StudyGoalData(
+      mode: 'general',
+      domainId: 'adult',
+      subdomainId: 'all',
+      recommendedQuestions: 10,
+      reason: 'バランスよく学習しましょう',
+      displayName: '一般・状況設定問題',
+      encouragement: EncouragementMessages.randomStudyStart(),
+    );
+  }
+}
+
+class _StudyGoalCardContent extends StatelessWidget {
+  const _StudyGoalCardContent({
+    required this.data,
+    required this.onStartStudy,
+  });
+
+  final _StudyGoalData data;
+  final void Function(String mode, String domainId, String subdomainId) onStartStudy;
+
   @override
   Widget build(BuildContext context) {
-    final data = _getGoalData();
     final theme = Theme.of(context);
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       elevation: 2,
-      color: AppColors.primaryContainer.withOpacity(0.3), // 背景色で目立たせる
+      color: AppColors.primaryContainer.withOpacity(0.3),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Padding(
         padding: const EdgeInsets.all(20),
@@ -47,8 +151,8 @@ class StudyGoalCard extends StatelessWidget {
                     color: AppColors.primary,
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: Icon(
-                    Icons.auto_awesome, // アイコン変更: 自動提案を示唆
+                  child: const Icon(
+                    Icons.auto_awesome,
                     color: Colors.white,
                     size: 24,
                   ),
@@ -61,7 +165,7 @@ class StudyGoalCard extends StatelessWidget {
                       Row(
                         children: [
                           Text(
-                            'おすすめの学習', // タイトル変更
+                            'おすすめの学習',
                             style: theme.textTheme.titleMedium?.copyWith(
                               fontWeight: FontWeight.bold,
                               color: AppColors.primary,
@@ -78,7 +182,7 @@ class StudyGoalCard extends StatelessWidget {
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Text(
-                              'AI提案', // バッジ追加
+                              'AI提案',
                               style: theme.textTheme.labelSmall?.copyWith(
                                 color: Colors.white,
                                 fontWeight: FontWeight.bold,
@@ -128,7 +232,6 @@ class StudyGoalCard extends StatelessWidget {
                           ),
                         ),
                       ),
-                      // 推奨バッジ
                       Container(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 8,
@@ -197,7 +300,7 @@ class StudyGoalCard extends StatelessWidget {
                     Icon(Icons.play_arrow, size: 24),
                     SizedBox(width: 8),
                     Text(
-                      'このおすすめで学習する', // ボタンテキスト変更
+                      'このおすすめで学習する',
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
@@ -208,7 +311,6 @@ class StudyGoalCard extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 8),
-            // 説明テキスト追加
             Center(
               child: Text(
                 '※ 自分で領域を選びたい場合は下のタブから選択できます',

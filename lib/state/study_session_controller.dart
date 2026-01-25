@@ -51,11 +51,10 @@ class StudySessionController extends ChangeNotifier {
 
   final Map<String, QuestionState> questionStates = {};
   final Map<String, SkillState> skillStates = {};
-
   final Set<String> answeredQuestionIds = {};
   final Set<String> completedCaseIds = {};
-
   final Map<String, String> skillLabels = {};
+  
   List<SkillProgress> latestSkillProgress = [];
   final Map<String, double> lastSkillScores = {};
 
@@ -63,11 +62,10 @@ class StudySessionController extends ChangeNotifier {
   String? currentQuestionId;
   String? lastOverallRank;
   String? overallRank;
-  double lastOverallScore = 50;
-  double overallScore = 50;
+  double lastOverallScore = 40; // 必修の合格ライン
+  double overallScore = 40;
   bool showOverlay = false;
   bool showStreakPraise = true;
-  String? requiredBorderLabel;
   String? streakMessage;
   int streakCount = 0;
   bool isLoading = true;
@@ -91,29 +89,16 @@ class StudySessionController extends ChangeNotifier {
     notifyListeners();
     try {
       final user = await AuthService.ensureSignedIn();
-      // ignore: avoid_print
       print('StudySessionController.start signed in uid=${user.uid}');
-      // ignore: avoid_print
-      print('StudySessionController.start loading questions mode=$mode');
       final loaded = await questionSetService.loadActiveQuestions(mode: mode);
-      // ignore: avoid_print
-      print('StudySessionController.start loaded count=${loaded.length}');
       _questions = _filterQuestions(loaded);
-      // ignore: avoid_print
-      print(
-        'StudySessionController.start filtered count=${_questions.length} '
-        'domainId=$domainId subdomainId=$subdomainId',
-      );
+      
       if (_questions.isEmpty) {
         _questions = _filterQuestions(
           dummyQuestions.where((q) => q.mode == mode).toList(),
         );
-        // ignore: avoid_print
-        print(
-          'StudySessionController.start fallback dummy count=${_questions.length} '
-          'domainId=$domainId subdomainId=$subdomainId',
-        );
       }
+      
       await _loadSkillScopes();
       await _loadSkillStates();
       await _loadQuestionStates();
@@ -123,8 +108,6 @@ class StudySessionController extends ChangeNotifier {
       _refreshOverallScore();
     } catch (error) {
       loadError = error.toString();
-      // ignore: avoid_print
-      print('StudySessionController.start error=$error');
       _questions = _filterQuestions(
         dummyQuestions.where((q) => q.mode == mode).toList(),
       );
@@ -211,7 +194,6 @@ class StudySessionController extends ChangeNotifier {
           await skillStateRepository.saveSkillState(updatedSkill);
         }
       } catch (error) {
-        // ignore: avoid_print
         print('StudySessionController.submitAnswer save error=$error');
       }
     } finally {
@@ -226,8 +208,12 @@ class StudySessionController extends ChangeNotifier {
   void dismissOverlay() {
     showOverlay = false;
     showStreakPraise = false;
-    requiredBorderLabel = null;
     streakMessage = null;
+    notifyListeners();
+  }
+
+  void advanceToNextQuestion() {
+    _pickNextQuestion();
     notifyListeners();
   }
 
@@ -255,16 +241,27 @@ class StudySessionController extends ChangeNotifier {
     currentQuestionId = nextId ?? (_questions.isNotEmpty ? _questions.first.id : null);
   }
 
-  void advanceToNextQuestion() {
-    _pickNextQuestion();
-    notifyListeners();
-  }
-
   List<Question> _filterQuestions(List<Question> source) {
-    return source
+    print('=== _filterQuestions DEBUG ===');
+    print('mode: $mode');
+    print('domainId: $domainId');
+    print('subdomainId: $subdomainId');
+    print('source count: ${source.length}');
+    
+    // 最初の5問だけサンプル表示
+    for (var i = 0; i < source.length && i < 5; i++) {
+      final q = source[i];
+      print('Question ${q.id}: mode=${q.mode}, domainId=${q.domainId}, subdomainId=${q.subdomainId}');
+    }
+    
+    final filtered = source
         .where((question) => question.domainId == domainId)
         .where((question) => subdomainId == 'all' || question.subdomainId == subdomainId)
         .toList();
+        
+    print('filtered count: ${filtered.length}');
+    print('=============================');
+    return filtered;
   }
 
   QuestionState _updateQuestionState({
@@ -326,6 +323,7 @@ class StudySessionController extends ChangeNotifier {
         lastUnitCompletedAt!.month != now.month ||
         lastUnitCompletedAt!.day != now.day;
     showStreakPraise = isFirstToday;
+    
     if (isFirstToday) {
       final updatedStreak = _calculateStreak(now);
       streakCount = updatedStreak.currentStreak;
@@ -336,27 +334,12 @@ class StudySessionController extends ChangeNotifier {
     } else {
       streakMessage = null;
     }
-    if (mode == 'required') {
-      requiredBorderLabel = _requiredBorderLabel(overallScore);
-    } else {
-      requiredBorderLabel = null;
-    }
-    // Before/after差分はここで確定:
-    // - lastSkillScores(前回) -> SkillProgress.previousScore
-    // - skillStates(今回) -> SkillProgress.currentScore
-    // overlayにはlatestSkillProgressとして渡す。
+
     _refreshSkillProgressSnapshot();
     _snapshotSkillScores();
     await Future.delayed(const Duration(milliseconds: 320));
     showOverlay = true;
     notifyListeners();
-  }
-
-  String _requiredBorderLabel(double score) {
-    if (score >= 80) return '余裕';
-    if (score >= 70) return '安定';
-    if (score >= 60) return '注意';
-    return '危険';
   }
 
   String _skillScopeId(Question question) {
@@ -368,9 +351,8 @@ class StudySessionController extends ChangeNotifier {
         ? 'assets/taxonomy_required.json'
         : 'assets/taxonomy_general.json';
     final domains = await taxonomyService.loadDomains(asset);
-    if (domains.isEmpty) {
-      return;
-    }
+    if (domains.isEmpty) return;
+    
     skillLabels.clear();
     if (mode == 'required') {
       for (final subdomain in domains.first.subdomains) {
@@ -412,15 +394,22 @@ class StudySessionController extends ChangeNotifier {
 
   void _refreshOverallScore() {
     if (skillLabels.isEmpty) {
-      overallScore = 50;
-      overallRank = scoreEngine.rankFromScore(overallScore);
+      overallScore = mode == 'required' ? 40 : 162.5;
+      overallRank = 'B';
       return;
     }
-    final scores = skillLabels.keys
-        .map((skillId) => scoreEngine.scoreFromTheta(skillStates[skillId]?.theta ?? 0))
-        .toList();
+    
+    final scores = skillLabels.keys.map((skillId) {
+      final theta = skillStates[skillId]?.theta ?? 0;
+      return mode == 'required'
+          ? scoreEngine.thetaToRequiredScore(theta)
+          : scoreEngine.thetaToGeneralScore(theta);
+    }).toList();
+    
     overallScore = scores.reduce((a, b) => a + b) / scores.length;
-    overallRank = scoreEngine.rankFromScore(overallScore);
+    overallRank = mode == 'required'
+        ? scoreEngine.requiredRankFromScore(overallScore)
+        : scoreEngine.generalRankFromScore(overallScore);
   }
 
   void _refreshSkillProgressSnapshot() {
@@ -430,34 +419,42 @@ class StudySessionController extends ChangeNotifier {
       lastOverallRank = overallRank;
       return;
     }
-    final previousScores = skillLabels.keys
-        .map((skillId) => lastSkillScores[skillId] ?? 50)
-        .toList();
+    
+    final previousScores = skillLabels.keys.map((skillId) {
+      return lastSkillScores[skillId] ?? (mode == 'required' ? 40.0 : 162.5);
+    }).toList();
+    
     lastOverallScore = previousScores.reduce((a, b) => a + b) / previousScores.length;
-    lastOverallRank = scoreEngine.rankFromScore(lastOverallScore);
-    latestSkillProgress = skillLabels.entries
-        .map(
-          (entry) => SkillProgress(
-            skillId: entry.key,
-            label: entry.value,
-            previousScore: lastSkillScores[entry.key] ??
-                scoreEngine.scoreFromTheta(skillStates[entry.key]?.theta ?? 0),
-            currentScore: scoreEngine.scoreFromTheta(skillStates[entry.key]?.theta ?? 0),
-          ),
-        )
-        .toList();
+    lastOverallRank = mode == 'required'
+        ? scoreEngine.requiredRankFromScore(lastOverallScore)
+        : scoreEngine.generalRankFromScore(lastOverallScore);
+    
+    latestSkillProgress = skillLabels.entries.map((entry) {
+      final theta = skillStates[entry.key]?.theta ?? 0;
+      final currentScore = mode == 'required'
+          ? scoreEngine.thetaToRequiredScore(theta)
+          : scoreEngine.thetaToGeneralScore(theta);
+      
+      return SkillProgress(
+        skillId: entry.key,
+        label: entry.value,
+        previousScore: lastSkillScores[entry.key] ?? currentScore,
+        currentScore: currentScore,
+      );
+    }).toList();
   }
 
   void _snapshotSkillScores() {
     lastSkillScores
       ..clear()
       ..addEntries(
-        skillLabels.keys.map(
-          (skillId) => MapEntry(
-            skillId,
-            scoreEngine.scoreFromTheta(skillStates[skillId]?.theta ?? 0),
-          ),
-        ),
+        skillLabels.keys.map((skillId) {
+          final theta = skillStates[skillId]?.theta ?? 0;
+          final score = mode == 'required'
+              ? scoreEngine.thetaToRequiredScore(theta)
+              : scoreEngine.thetaToGeneralScore(theta);
+          return MapEntry(skillId, score);
+        }),
       );
   }
 
@@ -470,6 +467,7 @@ class StudySessionController extends ChangeNotifier {
           lastUnitCompletedAt?.day ?? 1,
         );
     final yesterday = today.subtract(const Duration(days: 1));
+    
     int nextStreak;
     if (lastUnitCompletedAt == null) {
       nextStreak = 1;
@@ -480,6 +478,7 @@ class StudySessionController extends ChangeNotifier {
     } else {
       nextStreak = 1;
     }
+    
     return StreakState(
       currentStreak: nextStreak,
       lastStudyDate: today,
@@ -488,8 +487,8 @@ class StudySessionController extends ChangeNotifier {
   }
 
   String _buildStreakMessage(int streak) {
-    if (streak >= 5) return '連続$streak日達成！この調子でいきましょう！';
-    if (streak >= 3) return '連続$streak日目！すごいです！';
-    return '連続学習$streak日目！いいスタートです！';
+    if (streak >= 5) return '連続${streak}日達成!この調子でいきましょう!';
+    if (streak >= 3) return '連続${streak}日目!すごいです!';
+    return '連続学習${streak}日目!いいスタートです!';
   }
 }

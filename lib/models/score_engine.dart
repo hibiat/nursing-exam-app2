@@ -28,12 +28,10 @@ class ScoreEngine {
     required double difficulty,
   }) {
     if (timeExpired) {
-      final score = scoreFromTheta(theta);
-      return ScoreResult(theta: theta, score: score, rank: rankFromScore(score));
+      return ScoreResult(theta: theta, score: 0, rank: 'D');
     }
 
     final result = isCorrect ? 1.0 : 0.0;
-    // TODO: Replace difficulty with inferred item parameters once Cloud Functions aggregates stats.
     final beta = (difficulty - 0.5) * 2.0;
     final p = 1 / (1 + exp(-(theta - beta)));
 
@@ -46,25 +44,64 @@ class ScoreEngine {
     final wDiff = 0.7 + 0.6 * difficulty;
 
     final updatedTheta = theta + learningRate * wState * wConf * wDiff * (result - p);
-    final score = scoreFromTheta(updatedTheta);
 
     return ScoreResult(
       theta: updatedTheta,
-      score: score,
-      rank: rankFromScore(score),
+      score: 0, // 使用しない
+      rank: 'B', // 使用しない
     );
   }
 
-  double scoreFromTheta(double theta) {
-    return (50 + 20 * theta).clamp(0, 100).toDouble();
+  /// thetaから必修問題のスコアに変換(50点満点)
+  /// theta=0 で 40点(合格ライン)
+  double thetaToRequiredScore(double theta) {
+    return (40 + theta * 5).clamp(0, 50).toDouble();
   }
 
-  String rankFromScore(double score) {
-    if (score >= 80) return 'S';
-    if (score >= 60) return 'A';
-    if (score >= 40) return 'B';
-    if (score >= 20) return 'C';
+  /// thetaから一般・状況設定問題のスコアに変換(250点満点)
+  /// theta=0 で 162.5点(平均)
+  double thetaToGeneralScore(double theta) {
+    return (162.5 + theta * 37.5).clamp(0, 250).toDouble();
+  }
+
+  /// 必修スコアからランクを判定
+  String requiredRankFromScore(double score) {
+    if (score >= 48) return 'S';  // 96%+
+    if (score >= 45) return 'A';  // 90%+
+    if (score >= 40) return 'B';  // 80%+ (合格ライン)
+    if (score >= 35) return 'C';  // 70%+
     return 'D';
+  }
+
+  /// 一般・状況設定スコアからランクを判定
+  String generalRankFromScore(double score) {
+    if (score >= 200) return 'S';  // 80%+
+    if (score >= 175) return 'A';  // 70%+
+    if (score >= 150) return 'B';  // 60%+ (合格ライン)
+    if (score >= 125) return 'C';  // 50%+
+    return 'D';
+  }
+
+  /// 合格確率を計算
+  double calculatePassingProbability({
+    required double requiredScore,
+    required double generalScore,
+  }) {
+    final requiredPass = requiredScore >= 40;
+    final generalPass = generalScore >= 150;
+
+    if (!requiredPass || !generalPass) {
+      if (requiredScore >= 35 && generalScore >= 125) {
+        return 0.5;
+      }
+      return 0.3;
+    }
+
+    final requiredMargin = ((requiredScore - 40) / 10).clamp(0, 1);
+    final generalMargin = ((generalScore - 150) / 50).clamp(0, 1);
+    final avgMargin = (requiredMargin + generalMargin) / 2;
+    
+    return (0.75 + avgMargin * 0.23).clamp(0.3, 0.98);
   }
 
   double _stateWeight({
@@ -72,12 +109,8 @@ class ScoreEngine {
     required bool wasIncorrectBefore,
     required bool wasMostlyCorrect,
   }) {
-    if (isCorrect && wasIncorrectBefore) {
-      return 1.8;
-    }
-    if (isCorrect && wasMostlyCorrect) {
-      return 0.6;
-    }
+    if (isCorrect && wasIncorrectBefore) return 1.8;
+    if (isCorrect && wasMostlyCorrect) return 0.6;
     return 1.0;
   }
 

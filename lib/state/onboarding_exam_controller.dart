@@ -44,14 +44,40 @@ class OnboardingExamController extends ChangeNotifier {
   int get totalQuestions => questions.length;
 
   double get summaryScore {
-    if (skillStates.isEmpty) return 50;
-    final scores = skillStates.values
-        .map((state) => scoreEngine.scoreFromTheta(state.theta))
+    if (skillStates.isEmpty) return 40; // デフォルト: 必修の合格ライン
+    
+    // 必修と一般を分けて計算して平均
+    final requiredStates = skillStates.entries
+        .where((e) => questions.any((q) => q.mode == 'required' && q.subdomainId == e.key));
+    final generalStates = skillStates.entries
+        .where((e) => questions.any((q) => q.mode == 'general' && q.domainId == e.key));
+    
+    final requiredScores = requiredStates
+        .map((e) => scoreEngine.thetaToRequiredScore(e.value.theta))
         .toList();
-    return scores.reduce((a, b) => a + b) / scores.length;
+    final generalScores = generalStates
+        .map((e) => scoreEngine.thetaToGeneralScore(e.value.theta))
+        .toList();
+    
+    // 必修は50点満点、一般は250点満点なので正規化して平均
+    final requiredAvg = requiredScores.isEmpty 
+        ? 40.0 
+        : requiredScores.reduce((a, b) => a + b) / requiredScores.length;
+    final generalAvg = generalScores.isEmpty 
+        ? 162.5 
+        : generalScores.reduce((a, b) => a + b) / generalScores.length;
+    
+    // 両方を50点満点に正規化して平均
+    final requiredNormalized = requiredAvg; // 既に50点満点
+    final generalNormalized = generalAvg / 5; // 250点満点 → 50点満点
+    
+    return (requiredNormalized + generalNormalized) / 2;
   }
 
-  String get summaryRank => scoreEngine.rankFromScore(summaryScore);
+  String get summaryRank {
+    // summaryScoreは50点満点に正規化されているので、必修の基準で判定
+    return scoreEngine.requiredRankFromScore(summaryScore);
+  }
 
   Future<void> start() async {
     isLoading = true;

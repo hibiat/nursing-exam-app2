@@ -6,6 +6,8 @@ import '../models/question.dart';
 import '../repositories/user_settings_repository.dart';
 import '../state/study_session_controller.dart';
 import '../widgets/score_update_overlay.dart';
+import 'study_summary_screen.dart';
+
 
 class StudyScreen extends StatefulWidget {
   const StudyScreen({
@@ -36,9 +38,13 @@ class _StudyScreenState extends State<StudyScreen> {
   bool lastTimeExpired = false;
   static const int _timerTickMs = 1000;
   int _timeLimitMs = UserSettingsRepository.defaultTimeLimitSeconds * 1000;
-  bool _showTimer = false; // 新規追加: タイマー表示ON/OFF
+  bool _showTimer = false;
   String? _activeQuestionId;
   Question? _displayQuestion;
+  
+  // 学習統計
+  int _totalAnswered = 0;
+  int _correctCount = 0;
 
   @override
   void initState() {
@@ -56,7 +62,7 @@ class _StudyScreenState extends State<StudyScreen> {
   Future<void> _initialize() async {
     final settings = await UserSettingsRepository().fetchSettings();
     _timeLimitMs = settings.timeLimitSeconds * 1000;
-    _showTimer = settings.showTimer; // 新規追加: タイマー表示設定を読み込む
+    _showTimer = settings.showTimer;
     remainingMs = _timeLimitMs;
     await controller.start();
   }
@@ -92,6 +98,19 @@ class _StudyScreenState extends State<StudyScreen> {
 
   void _submit({required String? chosen, required bool isSkip, required bool timeExpired}) {
     if (answered) return;
+    
+    final question = _displayQuestion ?? controller.currentQuestion;
+    if (question == null) return;
+    
+    // 統計を更新
+    if (!timeExpired) {
+      _totalAnswered++;
+      final isCorrect = chosen != null && chosen == question.answer && !isSkip;
+      if (isCorrect) {
+        _correctCount++;
+      }
+    }
+    
     setState(() {
       answered = true;
       selectedChoice = chosen;
@@ -125,6 +144,42 @@ class _StudyScreenState extends State<StudyScreen> {
       }
     });
   }
+
+  Future<void> _showFinishConfirmDialog() async {
+    final shouldFinish = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('学習を終了しますか?'),
+        content: Text('今日は$_totalAnswered問解きました。\nサマリーを確認しますか?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('キャンセル'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('終了してサマリーを見る'),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldFinish == true && mounted) {
+      await Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (_) => StudySummaryScreen(
+            questionsAnswered: _totalAnswered,
+            correctCount: _correctCount,
+            skillProgress: controller.latestSkillProgress,
+            rank: controller.overallRank,
+            lastRank: controller.lastOverallRank,
+            overallScoreDelta: controller.overallScore - controller.lastOverallScore,
+          ),
+        ),
+      );
+    }
+  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -187,6 +242,13 @@ class _StudyScreenState extends State<StudyScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.mode == 'required' ? '必修' : '一般・状況設定'),
+        actions: [
+          TextButton.icon(
+            onPressed: _showFinishConfirmDialog,
+            icon: const Icon(Icons.done),
+            label: const Text('学習終了'),
+          ),
+        ],
       ),
       body: Stack(
         children: [
@@ -318,7 +380,7 @@ class _StudyScreenState extends State<StudyScreen> {
                 timeProgress: timeProgress,
                 remainingSeconds: (remainingMs / 1000).ceil(),
                 timeExpired: lastTimeExpired,
-                showTimer: _showTimer, // 新規追加: タイマー表示設定を渡す
+                showTimer: _showTimer,
               ),
             ],
           ),
@@ -331,7 +393,7 @@ class _StudyScreenState extends State<StudyScreen> {
               showStreakPraise: controller.showStreakPraise,
               streakMessage: controller.streakMessage,
               streakCount: controller.streakCount,
-              requiredBorderLabel: controller.requiredBorderLabel,
+              requiredBorderLabel: null,
               onClose: controller.dismissOverlay,
             ),
         ],
@@ -420,17 +482,16 @@ class _TimerFooter extends StatelessWidget {
     required this.timeProgress,
     required this.remainingSeconds,
     required this.timeExpired,
-    required this.showTimer, // 新規追加
+    required this.showTimer,
   });
 
   final double timeProgress;
   final int remainingSeconds;
   final bool timeExpired;
-  final bool showTimer; // 新規追加
+  final bool showTimer;
 
   @override
   Widget build(BuildContext context) {
-    // タイマー表示がOFFの場合は何も表示しない
     if (!showTimer) {
       return const SizedBox.shrink();
     }

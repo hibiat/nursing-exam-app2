@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
-
 import '../models/score_engine.dart';
-import '../models/skill_state.dart';
 import '../repositories/skill_state_repository.dart';
 import '../services/taxonomy_service.dart';
 
-class ScoreSummaryCard extends StatefulWidget {
+class ScoreSummaryCard extends StatelessWidget {
   const ScoreSummaryCard({
     super.key,
     this.onStartOnboarding,
@@ -14,256 +12,123 @@ class ScoreSummaryCard extends StatefulWidget {
   final VoidCallback? onStartOnboarding;
 
   @override
-  State<ScoreSummaryCard> createState() => _ScoreSummaryCardState();
-}
-
-class _ScoreSummaryCardState extends State<ScoreSummaryCard> {
-  final SkillStateRepository _skillStateRepository = SkillStateRepository();
-  final ScoreEngine _scoreEngine = ScoreEngine();
-  final TaxonomyService _taxonomyService = TaxonomyService();
-
-  late Future<_SkillScopeConfig> _scopeFuture;
-  int _reloadToken = 0;
-
-  @override
-  void initState() {
-    super.initState();
-    _scopeFuture = _loadSkillScopes();
-  }
-
-  Future<_SkillScopeConfig> _loadSkillScopes() async {
-    final requiredDomains = await _taxonomyService.loadDomains('assets/taxonomy_required.json');
-    final generalDomains = await _taxonomyService.loadDomains('assets/taxonomy_general.json');
-    final requiredIds = <String>{};
-    if (requiredDomains.isNotEmpty) {
-      for (final subdomain in requiredDomains.first.subdomains) {
-        requiredIds.add(subdomain.id);
-      }
-    }
-    final generalIds = generalDomains.map((domain) => domain.id).toSet();
-    return _SkillScopeConfig(
-      requiredIds: requiredIds,
-      generalIds: generalIds,
-    );
-  }
-
-  void _retry() {
-    setState(() {
-      _reloadToken += 1;
-      _scopeFuture = _loadSkillScopes();
-    });
-  }
-
-  @override
   Widget build(BuildContext context) {
-    return FutureBuilder<_SkillScopeConfig>(
-      future: _scopeFuture,
+    return FutureBuilder<_ScoreSummaryData>(
+      future: _loadScoreData(),
       builder: (context, snapshot) {
-        if (snapshot.hasError) {
-          return _ScoreSummaryCardLayout(
-            requiredRank: '—',
-            generalRank: '—',
-            statusMessage: 'スコアの読み込みに失敗しました',
-            onRetry: _retry,
-            onStartOnboarding: widget.onStartOnboarding,
-          );
+        if (!snapshot.hasData) {
+          return const SizedBox.shrink();
         }
-        final config = snapshot.data;
-        if (config == null) {
-          return _ScoreSummaryCardLayout(
-            requiredRank: '診断中',
-            generalRank: '診断中',
-            statusMessage: 'スコアを読み込み中です',
-            onStartOnboarding: widget.onStartOnboarding,
-          );
-        }
-        return StreamBuilder<Map<String, SkillState>>(
-          key: ValueKey(_reloadToken),
-          stream: _skillStateRepository.watchSkillStates(),
-          builder: (context, stateSnapshot) {
-            if (stateSnapshot.hasError) {
-              return _ScoreSummaryCardLayout(
-                requiredRank: '—',
-                generalRank: '—',
-                statusMessage: 'スコアの取得に失敗しました',
-                onRetry: _retry,
-                onStartOnboarding: widget.onStartOnboarding,
-              );
-            }
-            final skillStates = stateSnapshot.data ?? {};
-            final requiredScore = _averageScore(config.requiredIds, skillStates);
-            final generalScore = _averageScore(config.generalIds, skillStates);
-            return _ScoreSummaryCardLayout(
-              requiredRank: _rankFromScore(requiredScore),
-              generalRank: _rankFromScore(generalScore),
-              statusMessage: null,
-              onStartOnboarding: widget.onStartOnboarding,
-            );
-          },
+
+        final data = snapshot.data!;
+        return Card(
+          margin: const EdgeInsets.all(16),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '必修',
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                        Text(
+                          'ランク ${data.requiredRank}',
+                          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                                fontWeight: FontWeight.bold,
+                              ),
+                        ),
+                      ],
+                    ),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text(
+                          '一般・状況',
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                        Text(
+                          'ランク ${data.generalRank}',
+                          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                                fontWeight: FontWeight.bold,
+                              ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                if (onStartOnboarding != null) ...[
+                  const SizedBox(height: 12),
+                  FilledButton(
+                    onPressed: onStartOnboarding,
+                    child: const Text('初期スコア測定を開始'),
+                  ),
+                ],
+              ],
+            ),
+          ),
         );
       },
     );
   }
 
-  double? _averageScore(Set<String> ids, Map<String, SkillState> skillStates) {
-    if (ids.isEmpty) return null;
-    final scores = ids
-        .map((id) => skillStates[id])
-        .whereType<SkillState>()
-        .map((state) => _scoreEngine.scoreFromTheta(state.theta))
-        .toList();
-    if (scores.isEmpty) return null;
-    return scores.reduce((a, b) => a + b) / scores.length;
-  }
+  Future<_ScoreSummaryData> _loadScoreData() async {
+    final scoreEngine = ScoreEngine();
+    final skillStateRepo = SkillStateRepository();
+    final taxonomyService = TaxonomyService();
 
-  String _rankFromScore(double? score) {
-    if (score == null) return '—';
-    return _scoreEngine.rankFromScore(score);
+    try {
+      // 必修のスコア計算
+      final requiredDomains = await taxonomyService.loadDomains('assets/taxonomy_required.json');
+      final requiredSkillIds = requiredDomains.isNotEmpty
+          ? requiredDomains.first.subdomains.map((s) => s.id).toList()
+          : <String>[];
+      final requiredStates = await skillStateRepo.fetchSkillStates(requiredSkillIds);
+      final requiredScores = requiredSkillIds
+          .map((id) => scoreEngine.thetaToRequiredScore(requiredStates[id]?.theta ?? 0))
+          .toList();
+      final requiredScore = requiredScores.isEmpty
+          ? 40.0
+          : requiredScores.reduce((a, b) => a + b) / requiredScores.length;
+      final requiredRank = scoreEngine.requiredRankFromScore(requiredScore);
+
+      // 一般のスコア計算
+      final generalDomains = await taxonomyService.loadDomains('assets/taxonomy_general.json');
+      final generalSkillIds = generalDomains.map((d) => d.id).toList();
+      final generalStates = await skillStateRepo.fetchSkillStates(generalSkillIds);
+      final generalScores = generalSkillIds
+          .map((id) => scoreEngine.thetaToGeneralScore(generalStates[id]?.theta ?? 0))
+          .toList();
+      final generalScore = generalScores.isEmpty
+          ? 162.5
+          : generalScores.reduce((a, b) => a + b) / generalScores.length;
+      final generalRank = scoreEngine.generalRankFromScore(generalScore);
+
+      return _ScoreSummaryData(
+        requiredRank: requiredRank,
+        generalRank: generalRank,
+      );
+    } catch (e) {
+      return _ScoreSummaryData(
+        requiredRank: 'B',
+        generalRank: 'B',
+      );
+    }
   }
 }
 
-class _ScoreSummaryCardLayout extends StatelessWidget {
-  const _ScoreSummaryCardLayout({
+class _ScoreSummaryData {
+  const _ScoreSummaryData({
     required this.requiredRank,
     required this.generalRank,
-    required this.statusMessage,
-    this.onRetry,
-    this.onStartOnboarding,
   });
 
   final String requiredRank;
   final String generalRank;
-  final String? statusMessage;
-  final VoidCallback? onRetry;
-  final VoidCallback? onStartOnboarding;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final headlineStyle = theme.textTheme.displayMedium?.copyWith(
-      fontWeight: FontWeight.bold,
-      letterSpacing: 2,
-    );
-    return Card(
-      margin: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-      elevation: 0.5,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(18, 16, 18, 18),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    '現在の実力',
-                    style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
-                  ),
-                ),
-                Text(
-                  '今日も少し前進',
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: _ScoreColumn(
-                    title: '必修',
-                    rank: requiredRank,
-                    rankStyle: headlineStyle,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _ScoreColumn(
-                    title: '一般',
-                    rank: generalRank,
-                    rankStyle: headlineStyle,
-                  ),
-                ),
-              ],
-            ),
-            if (statusMessage != null) ...[
-              const SizedBox(height: 8),
-              Text(
-                statusMessage!,
-                style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-              ),
-            ],
-            if (onRetry != null) ...[
-              const SizedBox(height: 8),
-              Align(
-                alignment: Alignment.centerLeft,
-                child: TextButton(
-                  onPressed: onRetry,
-                  child: const Text('再読み込み'),
-                ),
-              ),
-            ],
-            if (onStartOnboarding != null) ...[
-              const SizedBox(height: 4),
-              Align(
-                alignment: Alignment.centerLeft,
-                child: TextButton.icon(
-                  onPressed: onStartOnboarding,
-                  style: TextButton.styleFrom(
-                    padding: EdgeInsets.zero,
-                    visualDensity: VisualDensity.compact,
-                  ),
-                  icon: const Icon(Icons.auto_awesome, size: 16),
-                  label: const Text('初期スコアを推定する（いつでもOK）'),
-                ),
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _ScoreColumn extends StatelessWidget {
-  const _ScoreColumn({
-    required this.title,
-    required this.rank,
-    required this.rankStyle,
-  });
-
-  final String title;
-  final String rank;
-  final TextStyle? rankStyle;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(title, style: theme.textTheme.labelLarge),
-        const SizedBox(height: 6),
-        Text(rank, style: rankStyle),
-        const SizedBox(height: 4),
-        Text(
-          '総合ランク',
-          style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-        ),
-      ],
-    );
-  }
-}
-
-class _SkillScopeConfig {
-  const _SkillScopeConfig({
-    required this.requiredIds,
-    required this.generalIds,
-  });
-
-  final Set<String> requiredIds;
-  final Set<String> generalIds;
 }
