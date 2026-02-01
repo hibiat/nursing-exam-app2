@@ -2,11 +2,8 @@ import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 
-import '../data/dummy_questions.dart';
-import '../models/attempt.dart';
 import '../models/question.dart';
 import '../models/question_state.dart';
-import '../models/score_engine.dart';
 import '../models/skill_progress.dart';
 import '../models/skill_state.dart';
 import '../models/streak_state.dart';
@@ -17,6 +14,7 @@ import '../repositories/streak_state_repository.dart';
 import '../services/auth_service.dart';
 import '../services/question_set_service.dart';
 import '../services/scheduler.dart';
+import '../services/score_engine.dart';
 import '../services/taxonomy_service.dart';
 
 class StudySessionController extends ChangeNotifier {
@@ -25,6 +23,7 @@ class StudySessionController extends ChangeNotifier {
     required this.domainId,
     required this.subdomainId,
     required this.unitTarget,
+    this.isRecommendedMode = false,
     AttemptRepository? attemptRepository,
     QuestionStateRepository? questionStateRepository,
     SkillStateRepository? skillStateRepository,
@@ -40,6 +39,7 @@ class StudySessionController extends ChangeNotifier {
   final String domainId;
   final String subdomainId;
   final int unitTarget;
+  final bool isRecommendedMode;
   final AttemptRepository attemptRepository;
   final QuestionStateRepository questionStateRepository;
   final SkillStateRepository skillStateRepository;
@@ -54,7 +54,7 @@ class StudySessionController extends ChangeNotifier {
   final Set<String> answeredQuestionIds = {};
   final Set<String> completedCaseIds = {};
   final Map<String, String> skillLabels = {};
-  
+
   List<SkillProgress> latestSkillProgress = [];
   final Map<String, double> lastSkillScores = {};
 
@@ -90,15 +90,32 @@ class StudySessionController extends ChangeNotifier {
     try {
       final user = await AuthService.ensureSignedIn();
       print('StudySessionController.start signed in uid=${user.uid}');
+      print('🔥 Firebase読み込み開始: mode=$mode');
       final loaded = await questionSetService.loadActiveQuestions(mode: mode);
-      _questions = _filterQuestions(loaded);
-      
-      if (_questions.isEmpty) {
-        _questions = _filterQuestions(
-          dummyQuestions.where((q) => q.mode == mode).toList(),
+      print('🔥 Firebase読み込み結果: ${loaded.length}問');
+
+      if (loaded.isEmpty) {
+        throw Exception(
+          'Firebaseから問題を読み込めませんでした。\n'
+          '以下を確認してください:\n'
+          '1. Firestore: question_sets/v1/metadata/$mode が存在し、active=true\n'
+          '2. Storage: question_sets/v1/$mode.jsonl が存在\n'
+          '3. Firestore/Storage Rulesで読み取りが許可されている',
         );
       }
-      
+
+      _questions = _filterQuestions(loaded);
+      print('🔥 フィルタリング後: ${_questions.length}問');
+
+      if (_questions.isEmpty) {
+        throw Exception(
+          'フィルタリング後の問題が0件です。\n'
+          'mode=$mode, domainId=$domainId, subdomainId=$subdomainId\n'
+          '読み込んだ問題数: ${loaded.length}問\n'
+          '問題のdomain_idがTaxonomyと一致しているか確認してください。',
+        );
+      }
+
       await _loadSkillScopes();
       await _loadSkillStates();
       await _loadQuestionStates();
@@ -107,11 +124,10 @@ class StudySessionController extends ChangeNotifier {
       _refreshSkillProgressSnapshot();
       _refreshOverallScore();
     } catch (error) {
+      print('❌ エラー発生: $error');
       loadError = error.toString();
-      _questions = _filterQuestions(
-        dummyQuestions.where((q) => q.mode == mode).toList(),
-      );
     }
+
     isLoading = false;
     _pickNextQuestion();
     notifyListeners();
@@ -151,74 +167,72 @@ class StudySessionController extends ChangeNotifier {
         updatedSkill = SkillState(
           skillId: skillScopeId,
           theta: scoreResult.theta,
-          nEff: (skillStates[skillScopeId]?.nEff ?? 0) + 1,
-          lastUpdatedAt: DateTime.now(),
+          seen: (skillStates[skillScopeId]?.seen ?? 0) + 1,
+          correct: (skillStates[skillScopeId]?.correct ?? 0) + (isCorrect ? 1 : 0),
+          lastSeenAt: DateTime.now(),
         );
         skillStates[skillScopeId] = updatedSkill;
+        await skillStateRepository.saveSkillState(updatedSkill);
       }
 
-      _refreshOverallScore();
-
       final now = DateTime.now();
-      final previousStability = questionStates[question.id]?.stability ?? 1;
+      final previousStability = questionStates[question.id]?.stability ?? 2.0;
+      final wasLapses = questionStates[question.id]?.lapses ?? 0;
+
       final updatedState = _updateQuestionState(
         question: question,
         previousStability: previousStability,
-        wasLapses: questionStates[question.id]?.lapses ?? 0,
+        wasLapses: wasLapses,
         isCorrect: isCorrect,
         timeExpired: timeExpired,
         now: now,
       );
-      questionStates[question.id] = updatedState;
 
-      final attempt = Attempt(
-        id: '${question.id}_${now.millisecondsSinceEpoch}',
+      questionStates[question.id] = updatedState;
+      await questionStateRepository.saveQuestionState(updatedState);
+
+      await attemptRepository.saveAttempt(
         questionId: question.id,
         mode: question.mode,
         domainId: question.domainId,
         subdomainId: question.subdomainId,
-        chosen: isSkip || timeExpired ? null : chosen,
         isCorrect: isCorrect,
         isSkip: isSkip,
-        confidence: confidence,
         responseTimeMs: responseTimeMs,
         timeExpired: timeExpired,
-        answeredAt: now,
-        difficulty: question.difficulty,
+        confidence: confidence,
+        createdAt: now,
       );
 
-      try {
-        await attemptRepository.saveAttempt(attempt);
-        await questionStateRepository.saveQuestionState(updatedState);
-        if (updatedSkill != null) {
-          await skillStateRepository.saveSkillState(updatedSkill);
-        }
-      } catch (error) {
-        print('StudySessionController.submitAnswer save error=$error');
-      }
-    } finally {
       await _updateUnitProgress(question);
+      _refreshOverallScore();
+      _refreshSkillProgressSnapshot();
+      _snapshotSkillScores();
+
       if (advanceAfterSubmit) {
-        _pickNextQuestion();
+        _pickNextQuestion(previousId: question.id);
       }
       notifyListeners();
+    } catch (error) {
+      print('submitAnswer error: $error');
     }
   }
 
   void dismissOverlay() {
     showOverlay = false;
+    notifyListeners();
+  }
+
+  void resetStreakPraise() {
     showStreakPraise = false;
-    streakMessage = null;
     notifyListeners();
   }
 
-  void advanceToNextQuestion() {
-    _pickNextQuestion();
-    notifyListeners();
-  }
-
-  void _pickNextQuestion() {
-    final previousId = currentQuestionId;
+  void _pickNextQuestion({String? previousId}) {
+    if (_questions.isEmpty) {
+      currentQuestionId = null;
+      return;
+    }
     final nextId = scheduler.selectNextQuestion(
       candidates: _questions,
       questionStates: questionStates,
@@ -246,21 +260,21 @@ class StudySessionController extends ChangeNotifier {
     print('mode: $mode');
     print('domainId: $domainId');
     print('subdomainId: $subdomainId');
+    print('isRecommendedMode: $isRecommendedMode');
     print('source count: ${source.length}');
-    
-    // 最初の5問だけサンプル表示
-    for (var i = 0; i < source.length && i < 5; i++) {
-      final q = source[i];
-      print('Question ${q.id}: mode=${q.mode}, domainId=${q.domainId}, subdomainId=${q.subdomainId}');
+
+    if (isRecommendedMode) {
+      print('🎯 おすすめモード: 全問題から出題');
+      final filtered = source.where((q) => q.mode == mode).toList();
+      print('filtered count: ${filtered.length}');
+      return filtered;
     }
-    
     final filtered = source
-        .where((question) => question.domainId == domainId)
+        .where((question) => domainId == 'all' || question.domainId == domainId)
         .where((question) => subdomainId == 'all' || question.subdomainId == subdomainId)
         .toList();
-        
+
     print('filtered count: ${filtered.length}');
-    print('=============================');
     return filtered;
   }
 
@@ -300,8 +314,8 @@ class StudySessionController extends ChangeNotifier {
       answeredQuestionIds.add(question.id);
       final caseId = question.caseId!;
       final caseQuestions = _questions.where((q) => q.caseId == caseId).toList();
-      final allAnswered = caseQuestions.isNotEmpty &&
-          caseQuestions.every((q) => answeredQuestionIds.contains(q.id));
+      final allAnswered =
+          caseQuestions.isNotEmpty && caseQuestions.every((q) => answeredQuestionIds.contains(q.id));
       if (allAnswered && !completedCaseIds.contains(caseId)) {
         completedCaseIds.add(caseId);
         await _triggerUnitComplete();
@@ -323,7 +337,7 @@ class StudySessionController extends ChangeNotifier {
         lastUnitCompletedAt!.month != now.month ||
         lastUnitCompletedAt!.day != now.day;
     showStreakPraise = isFirstToday;
-    
+
     if (isFirstToday) {
       final updatedStreak = _calculateStreak(now);
       streakCount = updatedStreak.currentStreak;
@@ -347,21 +361,19 @@ class StudySessionController extends ChangeNotifier {
   }
 
   Future<void> _loadSkillScopes() async {
-    final asset = mode == 'required'
-        ? 'assets/taxonomy_required.json'
-        : 'assets/taxonomy_general.json';
+    final asset = mode == 'required' ? 'assets/taxonomy/required.json' : 'assets/taxonomy/general.json';
     final domains = await taxonomyService.loadDomains(asset);
-    if (domains.isEmpty) return;
-    
     skillLabels.clear();
     if (mode == 'required') {
-      for (final subdomain in domains.first.subdomains) {
-        skillLabels[subdomain.id] = subdomain.name;
+      for (final domain in domains) {
+        for (final subdomain in domain.subdomains) {
+          skillLabels[subdomain.id] = subdomain.name;
+        }
       }
-      return;
-    }
-    for (final domain in domains) {
-      skillLabels[domain.id] = domain.name;
+    } else {
+      for (final domain in domains) {
+        skillLabels[domain.id] = domain.name;
+      }
     }
   }
 
@@ -370,17 +382,18 @@ class StudySessionController extends ChangeNotifier {
     final stored = await skillStateRepository.fetchSkillStates(skillLabels.keys);
     skillStates
       ..clear()
-      ..addAll(stored);
+      ..addAll({for (final state in stored) state.skillId: state});
   }
 
   Future<void> _loadQuestionStates() async {
     final stored = await questionStateRepository.fetchQuestionStates(
       mode: mode,
       domainId: domainId,
+      subdomainId: subdomainId,
     );
     questionStates
       ..clear()
-      ..addEntries(stored.map((state) => MapEntry(state.questionId, state)));
+      ..addAll({for (final state in stored) state.questionId: state});
   }
 
   Future<void> _loadStreakState() async {
@@ -398,14 +411,12 @@ class StudySessionController extends ChangeNotifier {
       overallRank = 'B';
       return;
     }
-    
+
     final scores = skillLabels.keys.map((skillId) {
       final theta = skillStates[skillId]?.theta ?? 0;
-      return mode == 'required'
-          ? scoreEngine.thetaToRequiredScore(theta)
-          : scoreEngine.thetaToGeneralScore(theta);
+      return mode == 'required' ? scoreEngine.thetaToRequiredScore(theta) : scoreEngine.thetaToGeneralScore(theta);
     }).toList();
-    
+
     overallScore = scores.reduce((a, b) => a + b) / scores.length;
     overallRank = mode == 'required'
         ? scoreEngine.requiredRankFromScore(overallScore)
@@ -419,27 +430,25 @@ class StudySessionController extends ChangeNotifier {
       lastOverallRank = overallRank;
       return;
     }
-    
+
     final previousScores = skillLabels.keys.map((skillId) {
       return lastSkillScores[skillId] ?? (mode == 'required' ? 40.0 : 162.5);
     }).toList();
-    
+
     lastOverallScore = previousScores.reduce((a, b) => a + b) / previousScores.length;
     lastOverallRank = mode == 'required'
         ? scoreEngine.requiredRankFromScore(lastOverallScore)
         : scoreEngine.generalRankFromScore(lastOverallScore);
-    
+
     latestSkillProgress = skillLabels.entries.map((entry) {
       final theta = skillStates[entry.key]?.theta ?? 0;
-      final currentScore = mode == 'required'
-          ? scoreEngine.thetaToRequiredScore(theta)
-          : scoreEngine.thetaToGeneralScore(theta);
-      
+      final currentScore =
+          mode == 'required' ? scoreEngine.thetaToRequiredScore(theta) : scoreEngine.thetaToGeneralScore(theta);
       return SkillProgress(
         skillId: entry.key,
         label: entry.value,
+        score: currentScore,
         previousScore: lastSkillScores[entry.key] ?? currentScore,
-        currentScore: currentScore,
       );
     }).toList();
   }
@@ -447,15 +456,12 @@ class StudySessionController extends ChangeNotifier {
   void _snapshotSkillScores() {
     lastSkillScores
       ..clear()
-      ..addEntries(
-        skillLabels.keys.map((skillId) {
-          final theta = skillStates[skillId]?.theta ?? 0;
-          final score = mode == 'required'
-              ? scoreEngine.thetaToRequiredScore(theta)
-              : scoreEngine.thetaToGeneralScore(theta);
-          return MapEntry(skillId, score);
-        }),
-      );
+      ..addAll({
+        for (final skillId in skillLabels.keys)
+          skillId: mode == 'required'
+              ? scoreEngine.thetaToRequiredScore(skillStates[skillId]?.theta ?? 0)
+              : scoreEngine.thetaToGeneralScore(skillStates[skillId]?.theta ?? 0),
+      });
   }
 
   StreakState _calculateStreak(DateTime now) {
@@ -467,7 +473,7 @@ class StudySessionController extends ChangeNotifier {
           lastUnitCompletedAt?.day ?? 1,
         );
     final yesterday = today.subtract(const Duration(days: 1));
-    
+
     int nextStreak;
     if (lastUnitCompletedAt == null) {
       nextStreak = 1;
@@ -478,7 +484,7 @@ class StudySessionController extends ChangeNotifier {
     } else {
       nextStreak = 1;
     }
-    
+
     return StreakState(
       currentStreak: nextStreak,
       lastStudyDate: today,

@@ -103,14 +103,12 @@ class _HomeScreenState extends State<HomeScreen> {
                       // 今日の学習目標カード
                       SliverToBoxAdapter(
                         child: StudyGoalCard(
-                          onStartStudy: (mode, domainId, subdomainId) {
-                            // 学習画面へ遷移
+                          onStartStudy: (mode) {
+                            // おすすめモードで学習画面へ遷移
                             Navigator.of(context).push(
                               MaterialPageRoute(
-                                builder: (_) => StudyScreen(
+                                builder: (_) => StudyScreen.recommended(
                                   mode: mode,
-                                  domainId: domainId,
-                                  subdomainId: subdomainId,
                                 ),
                               ),
                             );

@@ -80,34 +80,50 @@ class OnboardingExamController extends ChangeNotifier {
   }
 
   Future<void> start() async {
-    isLoading = true;
-    loadError = null;
-    notifyListeners();
-    try {
-      profile = await userProfileRepository.fetchProfile();
-      final requiredQuestions = await questionSetService.loadActiveQuestions(mode: 'required');
-      final generalQuestions = await questionSetService.loadActiveQuestions(mode: 'general');
-      if (requiredQuestions.isEmpty && generalQuestions.isEmpty) {
-        loadError = '有効な問題セットがありません';
-        isLoading = false;
-        notifyListeners();
-        return;
-      }
-      await _loadSkillScopes();
-      final selected = <Question>[
-        ..._pickSample(requiredQuestions, 5),
-        ..._pickSample(generalQuestions, 5),
-      ];
-      selected.shuffle(Random());
-      questions = selected;
-      currentIndex = 0;
-      isCompleted = false;
-    } catch (error) {
-      loadError = error.toString();
+  isLoading = true;
+  loadError = null;
+  notifyListeners();
+  
+  try {
+    profile = await userProfileRepository.fetchProfile();
+    
+    print('🔥 オンボーディング問題読み込み開始');
+    final requiredQuestions = await questionSetService.loadActiveQuestions(mode: 'required');
+    final generalQuestions = await questionSetService.loadActiveQuestions(mode: 'general');
+    
+    print('🔥 必修: ${requiredQuestions.length}問, 一般: ${generalQuestions.length}問');
+
+    if (requiredQuestions.isEmpty && generalQuestions.isEmpty) {
+      throw Exception(
+        'Firebaseから問題を読み込めませんでした。\n'
+        'FIREBASE_SETUP_GUIDE.mdを参照して設定を確認してください。'
+      );
     }
-    isLoading = false;
-    notifyListeners();
+    
+    await _loadSkillScopes();
+    
+    final selected = <Question>[
+      ..._pickSample(requiredQuestions, 5),
+      ..._pickSample(generalQuestions, 5),
+    ];
+    
+    if (selected.isEmpty) {
+      throw Exception('問題を選択できませんでした。');
+    }
+    
+    selected.shuffle(Random());
+    questions = selected;
+    currentIndex = 0;
+    isCompleted = false;
+    
+  } catch (error) {
+    print('❌ オンボーディングエラー: $error');
+    loadError = error.toString();
   }
+  
+  isLoading = false;
+  notifyListeners();
+}
 
   Future<void> submitAnswer({
     required String? chosen,

@@ -15,11 +15,19 @@ class StudyScreen extends StatefulWidget {
     required this.mode,
     required this.domainId,
     required this.subdomainId,
-  });
+  }) : isRecommendedMode = false;
+
+  const StudyScreen.recommended({
+    super.key,
+    required this.mode,
+  })  : domainId = 'all',
+        subdomainId = 'all',
+        isRecommendedMode = true;
 
   final String mode;
   final String domainId;
   final String subdomainId;
+  final bool isRecommendedMode;
 
   @override
   State<StudyScreen> createState() => _StudyScreenState();
@@ -54,6 +62,7 @@ class _StudyScreenState extends State<StudyScreen> {
       domainId: widget.domainId,
       subdomainId: widget.subdomainId,
       unitTarget: 5,
+      isRecommendedMode: widget.isRecommendedMode,
     );
     controller.addListener(_onUpdate);
     _initFuture = _initialize();

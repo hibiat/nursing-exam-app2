@@ -11,7 +11,7 @@ class StudyGoalCard extends StatelessWidget {
     required this.onStartStudy,
   });
 
-  final void Function(String mode, String domainId, String subdomainId) onStartStudy;
+  final void Function(String mode) onStartStudy;
 
   @override
   Widget build(BuildContext context) {
@@ -55,68 +55,38 @@ class StudyGoalCard extends StatelessWidget {
     final weakDomain = await service.analyzeWeakestDomain();
 
     if (weakDomain != null) {
-      // 弱点がある場合、その領域を推奨
       return _StudyGoalData(
         mode: weakDomain.isRequired ? 'required' : 'general',
-        domainId: weakDomain.isRequired ? weakDomain.domainId : weakDomain.domainId,
-        subdomainId: weakDomain.isRequired ? weakDomain.domainId : 'all',
         recommendedQuestions: 10,
-        reason: '${weakDomain.domainName}が弱点です',
-        displayName: weakDomain.isRequired ? '必修: ${weakDomain.domainName}' : weakDomain.domainName,
+        reason: '${weakDomain.domainName}の理解を深めましょう',
+        displayName: 'AIおすすめ学習',
         encouragement: EncouragementMessages.randomStudyStart(),
       );
     }
 
-    // 弱点がない場合、実際に存在する領域からランダムに選ぶ
+    // 弱点がない場合、モードを選択
     try {
-      final taxonomyService = TaxonomyService();
       final isRequired = DateTime.now().millisecondsSinceEpoch % 2 == 0;
       
-      if (isRequired) {
-        // 必修の場合
-        final domains = await taxonomyService.loadDomains('assets/taxonomy_required.json');
-        if (domains.isNotEmpty && domains.first.subdomains.isNotEmpty) {
-          final subdomain = domains.first.subdomains.first;
-          return _StudyGoalData(
-            mode: 'required',
-            domainId: domains.first.id,
-            subdomainId: subdomain.id,
-            recommendedQuestions: 10,
-            reason: 'バランスよく学習しましょう',
-            displayName: '必修: ${subdomain.name}',
-            encouragement: EncouragementMessages.randomStudyStart(),
-          );
-        }
-      } else {
-        // 一般の場合
-        final domains = await taxonomyService.loadDomains('assets/taxonomy_general.json');
-        if (domains.isNotEmpty) {
-          final domain = domains.first;
-          return _StudyGoalData(
-            mode: 'general',
-            domainId: domain.id,
-            subdomainId: 'all',
-            recommendedQuestions: 10,
-            reason: 'バランスよく学習しましょう',
-            displayName: domain.name,
-            encouragement: EncouragementMessages.randomStudyStart(),
-          );
-        }
-      }
+      return _StudyGoalData(
+        mode: isRequired ? 'required' : 'general',
+        recommendedQuestions: 10,
+        reason: 'バランスよく学習しましょう',
+        displayName: 'AIおすすめ学習',
+        encouragement: EncouragementMessages.randomStudyStart(),
+      );
     } catch (e) {
       print('StudyGoalCard._generateGoalData error: $e');
+      
+      // エラー時のフォールバック
+      return _StudyGoalData(
+        mode: 'general',
+        recommendedQuestions: 10,
+        reason: 'バランスよく学習しましょう',
+        displayName: 'AIおすすめ学習',
+        encouragement: EncouragementMessages.randomStudyStart(),
+      );
     }
-
-    // フォールバック: データ取得失敗時
-    return _StudyGoalData(
-      mode: 'general',
-      domainId: 'adult',
-      subdomainId: 'all',
-      recommendedQuestions: 10,
-      reason: 'バランスよく学習しましょう',
-      displayName: '一般・状況設定問題',
-      encouragement: EncouragementMessages.randomStudyStart(),
-    );
   }
 }
 
@@ -127,7 +97,7 @@ class _StudyGoalCardContent extends StatelessWidget {
   });
 
   final _StudyGoalData data;
-  final void Function(String mode, String domainId, String subdomainId) onStartStudy;
+  final void Function(String mode) onStartStudy;
 
   @override
   Widget build(BuildContext context) {
@@ -285,7 +255,7 @@ class _StudyGoalCardContent extends StatelessWidget {
               width: double.infinity,
               child: FilledButton(
                 onPressed: () {
-                  onStartStudy(data.mode, data.domainId, data.subdomainId);
+                  onStartStudy(data.mode);
                 },
                 style: FilledButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 16),
@@ -331,8 +301,6 @@ class _StudyGoalCardContent extends StatelessWidget {
 class _StudyGoalData {
   const _StudyGoalData({
     required this.mode,
-    required this.domainId,
-    required this.subdomainId,
     required this.recommendedQuestions,
     required this.reason,
     required this.displayName,
@@ -340,8 +308,6 @@ class _StudyGoalData {
   });
 
   final String mode;
-  final String domainId;
-  final String subdomainId;
   final int recommendedQuestions;
   final String reason;
   final String displayName;
