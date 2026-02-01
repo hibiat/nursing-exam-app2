@@ -82,7 +82,7 @@ class _SelectScreenState extends State<SelectScreen> {
                 .toList()
             : <_RequiredSubdomainItem>[];
         final listCount = isRequired
-            ? requiredItems.length + (data.reviewLoadFailed ? 1 : 0)
+            ? requiredItems.length + 1 + (data.reviewLoadFailed ? 1 : 0)  // +1 for all-domains card
             : domains.length + (data.reviewLoadFailed ? 1 : 0);
         return ListView.builder(
           padding: const EdgeInsets.symmetric(vertical: 8),
@@ -97,6 +97,56 @@ class _SelectScreenState extends State<SelectScreen> {
                 ),
               );
             }
+            // For required mode, show "All Domains" card first
+            if (isRequired) {
+              final allDomainIndex = data.reviewLoadFailed ? 1 : 0;
+              if (index == allDomainIndex) {
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: _DomainCard(
+                    title: '必修問題（全16領域）',
+                    subtitle: '全領域からバランスよく出題',
+                    reviewCount: 0,
+                    icon: Icons.auto_awesome,
+                    isHighlighted: true,
+                    onTap: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => StudyScreen(
+                            mode: widget.mode,
+                            domainId: 'required.core',
+                            subdomainId: 'all',
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                );
+              }
+              
+              // Show individual subdomain cards
+              final requiredIndex = index - allDomainIndex - 1;
+              final requiredItem = requiredItems[requiredIndex];
+              return _DomainCard(
+                title: requiredItem.label,
+                subtitle: '特定領域を集中学習',
+                reviewCount: 0,
+                icon: Icons.local_hospital_outlined,
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => StudyScreen(
+                        mode: widget.mode,
+                        domainId: requiredItem.domainId,
+                        subdomainId: requiredItem.subdomainId,
+                      ),
+                    ),
+                  );
+                },
+              );
+            }
+            
+            // For general mode
             if (!isRequired) {
               final domainIndex = data.reviewLoadFailed ? index - 1 : index;
               final domain = domains[domainIndex];
@@ -119,25 +169,8 @@ class _SelectScreenState extends State<SelectScreen> {
                 },
               );
             }
-            final requiredIndex = data.reviewLoadFailed ? index - 1 : index;
-            final requiredItem = requiredItems[requiredIndex];
-            return _DomainCard(
-              title: requiredItem.label,
-              subtitle: '必修ユニット',
-              reviewCount: 0,
-              icon: Icons.local_hospital_outlined,
-              onTap: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => StudyScreen(
-                      mode: widget.mode,
-                      domainId: requiredItem.domainId,
-                      subdomainId: requiredItem.subdomainId,
-                    ),
-                  ),
-                );
-              },
-            );
+            
+            return const SizedBox.shrink();
           },
         );
       },
@@ -163,6 +196,7 @@ class _DomainCard extends StatelessWidget {
     required this.subtitle,
     required this.reviewCount,
     required this.icon,
+    this.isHighlighted = false,
     this.onTap,
   });
 
@@ -170,6 +204,7 @@ class _DomainCard extends StatelessWidget {
   final String subtitle;
   final int reviewCount;
   final IconData icon;
+  final bool isHighlighted;
   final VoidCallback? onTap;
 
   @override
@@ -194,7 +229,10 @@ class _DomainCard extends StatelessWidget {
         : null;
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      elevation: 0.5,
+      elevation: isHighlighted ? 2 : 0.5,
+      color: isHighlighted 
+          ? theme.colorScheme.primaryContainer.withOpacity(0.3)
+          : null,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: InkWell(
         borderRadius: BorderRadius.circular(16),

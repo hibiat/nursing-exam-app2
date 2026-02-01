@@ -165,12 +165,13 @@ class StudySessionController extends ChangeNotifier {
 
       SkillState? updatedSkill;
       if (!timeExpired) {
+        final prevNEff = skillStates[skillScopeId]?.nEff ?? 0;
+        final updatedNEff = prevNEff + (isCorrect ? 1.0 : 0.5);
         updatedSkill = SkillState(
           skillId: skillScopeId,
           theta: scoreResult.theta,
-          timesSeen: (skillStates[skillScopeId]?.timesSeen ?? 0) + 1,
-          timesCorrect: (skillStates[skillScopeId]?.timesCorrect ?? 0) + (isCorrect ? 1 : 0),
-          lastSeenAt: DateTime.now(),
+          nEff: updatedNEff,
+          lastUpdatedAt: DateTime.now(),
         );
         skillStates[skillScopeId] = updatedSkill;
         await skillStateRepository.saveSkillState(updatedSkill);
@@ -194,16 +195,19 @@ class StudySessionController extends ChangeNotifier {
 
       await attemptRepository.saveAttempt(
         Attempt(
+          id: '${DateTime.now().millisecondsSinceEpoch}_${question.id}',
           questionId: question.id,
           mode: question.mode,
           domainId: question.domainId,
           subdomainId: question.subdomainId,
+          chosen: chosen,
           isCorrect: isCorrect,
           isSkip: isSkip,
+          confidence: confidence,
           responseTimeMs: responseTimeMs,
           timeExpired: timeExpired,
-          confidence: confidence,
-          createdAt: now,
+          answeredAt: now,
+          difficulty: question.difficulty,
         ),
       );
 
@@ -373,7 +377,7 @@ class StudySessionController extends ChangeNotifier {
   }
 
   Future<void> _loadSkillScopes() async {
-    final asset = mode == 'required' ? 'assets/taxonomy/required.json' : 'assets/taxonomy/general.json';
+    final asset = mode == 'required' ? 'assets/taxonomy_required.json' : 'assets/taxonomy_general.json';
     final domains = await taxonomyService.loadDomains(asset);
     skillLabels.clear();
     if (mode == 'required') {
@@ -394,7 +398,7 @@ class StudySessionController extends ChangeNotifier {
     final stored = await skillStateRepository.fetchSkillStates(skillLabels.keys);
     skillStates
       ..clear()
-      ..addAll(Map.fromIterable(stored, key: (s) => (s as SkillState).skillId, value: (s) => s as SkillState));
+      ..addAll(stored);
   }
 
   Future<void> _loadQuestionStates() async {
@@ -404,7 +408,7 @@ class StudySessionController extends ChangeNotifier {
     );
     questionStates
       ..clear()
-      ..addAll(Map.fromIterable(stored, key: (s) => (s as QuestionState).questionId, value: (s) => s as QuestionState));
+      ..addAll({for (final state in stored) state.questionId: state});
   }
 
   Future<void> _loadStreakState() async {
