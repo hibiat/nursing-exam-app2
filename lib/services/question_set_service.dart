@@ -66,21 +66,42 @@ class QuestionSetService {
   Future<String?> loadActiveSetIdForMode(String mode) async {
     // ignore: avoid_print
     print('QuestionSetService.loadActiveSetIdForMode mode=$mode');
+    
+    // 最新バージョンを取得
     final snapshot = await _firestore
         .collection('question_sets')
-        .where('active', isEqualTo: true)
-        .where('mode', isEqualTo: mode)
+        .orderBy('version', descending: true)
         .limit(1)
         .get();
 
     if (snapshot.docs.isEmpty) {
       // ignore: avoid_print
-      print('QuestionSetService.loadActiveSetIdForMode none found');
+      print('QuestionSetService.loadActiveSetIdForMode no versions found');
       return null;
     }
+    
     final setId = snapshot.docs.first.id;
-    // ignore: avoid_print
     print('QuestionSetService.loadActiveSetIdForMode setId=$setId');
+    
+    // modeに対応するメタデータを確認
+    final modeDoc = await _firestore
+        .collection('question_sets')
+        .doc(setId)
+        .collection('metadata')
+        .doc(mode)
+        .get();
+    
+    if (!modeDoc.exists) {
+      print('QuestionSetService.loadActiveSetIdForMode metadata not found for mode=$mode');
+      return null;
+    }
+    
+    final isActive = modeDoc.data()?['active'] as bool? ?? false;
+    if (!isActive) {
+      print('QuestionSetService.loadActiveSetIdForMode mode=$mode is not active');
+      return null;
+    }
+    
     return setId;
   }
 
@@ -88,9 +109,7 @@ class QuestionSetService {
     final setId = await loadActiveSetIdForMode(mode);
     if (setId == null) return [];
 
-    final path = mode == 'required'
-        ? 'question_sets/$setId/questions_required.jsonl'
-        : 'question_sets/$setId/questions_general.jsonl';
+    final path = 'question_sets/$setId/$mode.jsonl';
 
     return loadQuestionsFromStorage(path);
   }
