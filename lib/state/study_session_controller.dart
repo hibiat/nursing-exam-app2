@@ -2,6 +2,7 @@ import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 
+import '../models/attempt.dart';
 import '../models/question.dart';
 import '../models/question_state.dart';
 import '../models/skill_progress.dart';
@@ -14,7 +15,7 @@ import '../repositories/streak_state_repository.dart';
 import '../services/auth_service.dart';
 import '../services/question_set_service.dart';
 import '../services/scheduler.dart';
-import '../services/score_engine.dart';
+import '../models/score_engine.dart';
 import '../services/taxonomy_service.dart';
 
 class StudySessionController extends ChangeNotifier {
@@ -167,8 +168,8 @@ class StudySessionController extends ChangeNotifier {
         updatedSkill = SkillState(
           skillId: skillScopeId,
           theta: scoreResult.theta,
-          seen: (skillStates[skillScopeId]?.seen ?? 0) + 1,
-          correct: (skillStates[skillScopeId]?.correct ?? 0) + (isCorrect ? 1 : 0),
+          timesSeen: (skillStates[skillScopeId]?.timesSeen ?? 0) + 1,
+          timesCorrect: (skillStates[skillScopeId]?.timesCorrect ?? 0) + (isCorrect ? 1 : 0),
           lastSeenAt: DateTime.now(),
         );
         skillStates[skillScopeId] = updatedSkill;
@@ -192,16 +193,18 @@ class StudySessionController extends ChangeNotifier {
       await questionStateRepository.saveQuestionState(updatedState);
 
       await attemptRepository.saveAttempt(
-        questionId: question.id,
-        mode: question.mode,
-        domainId: question.domainId,
-        subdomainId: question.subdomainId,
-        isCorrect: isCorrect,
-        isSkip: isSkip,
-        responseTimeMs: responseTimeMs,
-        timeExpired: timeExpired,
-        confidence: confidence,
-        createdAt: now,
+        Attempt(
+          questionId: question.id,
+          mode: question.mode,
+          domainId: question.domainId,
+          subdomainId: question.subdomainId,
+          isCorrect: isCorrect,
+          isSkip: isSkip,
+          responseTimeMs: responseTimeMs,
+          timeExpired: timeExpired,
+          confidence: confidence,
+          createdAt: now,
+        ),
       );
 
       await _updateUnitProgress(question);
@@ -226,6 +229,15 @@ class StudySessionController extends ChangeNotifier {
   void resetStreakPraise() {
     showStreakPraise = false;
     notifyListeners();
+  }
+
+  void advanceToNextQuestion() {
+    print('📍 advanceToNextQuestion開始');
+    print('📍 現在の問題ID: $currentQuestionId');
+    _pickNextQuestion();
+    print('📍 次の問題ID: $currentQuestionId');
+    notifyListeners();
+    print('📍 notifyListeners呼び出し完了');
   }
 
   void _pickNextQuestion({String? previousId}) {
@@ -382,18 +394,17 @@ class StudySessionController extends ChangeNotifier {
     final stored = await skillStateRepository.fetchSkillStates(skillLabels.keys);
     skillStates
       ..clear()
-      ..addAll({for (final state in stored) state.skillId: state});
+      ..addAll(Map.fromIterable(stored, key: (s) => (s as SkillState).skillId, value: (s) => s as SkillState));
   }
 
   Future<void> _loadQuestionStates() async {
     final stored = await questionStateRepository.fetchQuestionStates(
       mode: mode,
       domainId: domainId,
-      subdomainId: subdomainId,
     );
     questionStates
       ..clear()
-      ..addAll({for (final state in stored) state.questionId: state});
+      ..addAll(Map.fromIterable(stored, key: (s) => (s as QuestionState).questionId, value: (s) => s as QuestionState));
   }
 
   Future<void> _loadStreakState() async {
@@ -447,7 +458,7 @@ class StudySessionController extends ChangeNotifier {
       return SkillProgress(
         skillId: entry.key,
         label: entry.value,
-        score: currentScore,
+        currentScore: currentScore,
         previousScore: lastSkillScores[entry.key] ?? currentScore,
       );
     }).toList();
