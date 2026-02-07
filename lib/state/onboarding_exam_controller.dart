@@ -126,14 +126,16 @@ class OnboardingExamController extends ChangeNotifier {
 }
 
   Future<void> submitAnswer({
-    required String? chosen,
+    required dynamic userAnswer,
     required bool isSkip,
   }) async {
     if (isCompleted) return;
     final question = currentQuestion;
     if (question == null) return;
-    final isCorrect = chosen != null && chosen == question.answer && !isSkip;
+    
+    final isCorrect = !isSkip && question.isCorrect(userAnswer);
     final scopeId = question.mode == 'required' ? question.subdomainId : question.domainId;
+    
     final current = skillStates[scopeId] ??
         SkillState(
           skillId: scopeId,
@@ -141,6 +143,7 @@ class OnboardingExamController extends ChangeNotifier {
           nEff: 0,
           lastUpdatedAt: DateTime.now(),
         );
+    
     final result = scoreEngine.updateTheta(
       theta: current.theta,
       isCorrect: isCorrect,
@@ -151,12 +154,14 @@ class OnboardingExamController extends ChangeNotifier {
       confidence: null,
       difficulty: question.difficulty,
     );
+    
     skillStates[scopeId] = SkillState(
       skillId: scopeId,
       theta: result.theta,
       nEff: current.nEff + 1,
       lastUpdatedAt: DateTime.now(),
     );
+    
     currentIndex += 1;
     if (currentIndex >= questions.length) {
       await _completeExam();

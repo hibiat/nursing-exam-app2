@@ -6,6 +6,7 @@ import '../models/question.dart';
 import '../repositories/user_settings_repository.dart';
 import '../state/study_session_controller.dart';
 import '../widgets/score_update_overlay.dart';
+import '../widgets/question_answer_widget.dart';
 import 'study_summary_screen.dart';
 
 
@@ -40,7 +41,7 @@ class _StudyScreenState extends State<StudyScreen> {
   int elapsedMs = 0;
   int remainingMs = 0;
   bool answered = false;
-  String? selectedChoice;
+  dynamic _userAnswer; // int, List<int>, または null
   String? confidence;
   bool lastWasSkip = false;
   bool lastTimeExpired = false;
@@ -92,7 +93,7 @@ class _StudyScreenState extends State<StudyScreen> {
         _activeQuestionId = nextId;
         _displayQuestion = nextQuestion;
         answered = false;
-        selectedChoice = null;
+        _userAnswer = null;
         confidence = null;
         lastWasSkip = false;
         lastTimeExpired = false;
@@ -105,7 +106,7 @@ class _StudyScreenState extends State<StudyScreen> {
     setState(() {});
   }
 
-  void _submit({required String? chosen, required bool isSkip, required bool timeExpired}) {
+  void _submit({required dynamic answer, required bool isSkip, required bool timeExpired}) {
     if (answered) return;
     
     final question = _displayQuestion ?? controller.currentQuestion;
@@ -114,7 +115,7 @@ class _StudyScreenState extends State<StudyScreen> {
     // 統計を更新
     if (!timeExpired) {
       _totalAnswered++;
-      final isCorrect = chosen != null && chosen == question.answer && !isSkip;
+      final isCorrect = !isSkip && question.isCorrect(answer);
       if (isCorrect) {
         _correctCount++;
       }
@@ -122,7 +123,7 @@ class _StudyScreenState extends State<StudyScreen> {
     
     setState(() {
       answered = true;
-      selectedChoice = chosen;
+      _userAnswer = answer;
       lastWasSkip = isSkip;
       lastTimeExpired = timeExpired;
       if (timeExpired) {
@@ -130,8 +131,9 @@ class _StudyScreenState extends State<StudyScreen> {
       }
     });
     timer?.cancel();
+    
     controller.submitAnswer(
-      chosen: chosen,
+      userAnswer: answer,
       isSkip: isSkip,
       responseTimeMs: elapsedMs,
       timeExpired: timeExpired,
@@ -149,7 +151,7 @@ class _StudyScreenState extends State<StudyScreen> {
         elapsedMs = (_timeLimitMs - remainingMs).clamp(0, _timeLimitMs);
       });
       if (remainingMs <= 0 && !answered) {
-        _submit(chosen: null, isSkip: false, timeExpired: true);
+        _submit(answer: null, isSkip: false, timeExpired: true);
       }
     });
   }
@@ -242,11 +244,6 @@ class _StudyScreenState extends State<StudyScreen> {
     }
 
     final timeProgress = (remainingMs / _timeLimitMs).clamp(0, 1).toDouble();
-    final isCorrect = answered &&
-        !lastWasSkip &&
-        !lastTimeExpired &&
-        selectedChoice != null &&
-        selectedChoice == question.answer;
 
     return Scaffold(
       appBar: AppBar(
@@ -288,61 +285,23 @@ class _StudyScreenState extends State<StudyScreen> {
                 ),
               ),
               const SizedBox(height: 20),
-              ...question.choices.map(
-                (choice) => Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: OutlinedButton(
-                    onPressed: answered
-                        ? null
-                        : () => _submit(
-                              chosen: choice,
-                              isSkip: false,
-                              timeExpired: false,
-                            ),
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 14),
-                      backgroundColor: answered
-                          ? (choice == question.answer
-                              ? Theme.of(context).colorScheme.primaryContainer
-                              : (selectedChoice == choice
-                                  ? Theme.of(context).colorScheme.errorContainer
-                                  : null))
-                          : null,
-                      side: BorderSide(
-                        color: Theme.of(context).colorScheme.outlineVariant,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                    ),
-                    child: Align(
-                      alignment: Alignment.centerLeft,
-                      child: Row(
-                        children: [
-                          Expanded(child: Text(choice)),
-                          if (answered && choice == question.answer)
-                            Icon(
-                              Icons.check_circle,
-                              color: Theme.of(context).colorScheme.primary,
-                            ),
-                          if (answered &&
-                              selectedChoice == choice &&
-                              selectedChoice != question.answer)
-                            Icon(
-                              Icons.close,
-                              color: Theme.of(context).colorScheme.error,
-                            ),
-                        ],
-                      ),
-                    ),
-                  ),
+              
+              // 問題形式に応じた解答UI
+              QuestionAnswerWidget(
+                question: question,
+                enabled: !answered,
+                onAnswer: (answer) => _submit(
+                  answer: answer,
+                  isSkip: false,
+                  timeExpired: false,
                 ),
               ),
+              
               TextButton(
                 onPressed: answered
                     ? null
                     : () => _submit(
-                          chosen: null,
+                          answer: null,
                           isSkip: true,
                           timeExpired: false,
                         ),
@@ -351,12 +310,10 @@ class _StudyScreenState extends State<StudyScreen> {
               if (answered) ...[
                 const SizedBox(height: 16),
                 _AnswerFeedbackCard(
-                  isCorrect: isCorrect,
+                  question: question,
+                  userAnswer: _userAnswer,
                   wasSkip: lastWasSkip,
                   timeExpired: lastTimeExpired,
-                  selectedChoice: selectedChoice,
-                  correctAnswer: question.answer,
-                  explanation: question.explainLong ?? question.explainShort,
                 ),
                 const SizedBox(height: 12),
                 FilledButton(
@@ -413,24 +370,24 @@ class _StudyScreenState extends State<StudyScreen> {
 
 class _AnswerFeedbackCard extends StatelessWidget {
   const _AnswerFeedbackCard({
-    required this.isCorrect,
+    required this.question,
+    required this.userAnswer,
     required this.wasSkip,
     required this.timeExpired,
-    required this.selectedChoice,
-    required this.correctAnswer,
-    required this.explanation,
   });
 
-  final bool isCorrect;
+  final Question question;
+  final dynamic userAnswer;
   final bool wasSkip;
   final bool timeExpired;
-  final String? selectedChoice;
-  final String correctAnswer;
-  final String? explanation;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    
+    // 正解判定
+    final isCorrect = !wasSkip && !timeExpired && question.isCorrect(userAnswer);
+    
     String status;
     if (timeExpired) {
       status = '時間の目安を超過';
@@ -441,14 +398,53 @@ class _AnswerFeedbackCard extends StatelessWidget {
     } else {
       status = '不正解';
     }
+    
     final statusColor = isCorrect
         ? theme.colorScheme.primary
         : (wasSkip || timeExpired
             ? theme.colorScheme.onSurfaceVariant
             : theme.colorScheme.error);
-    final explanationText = explanation?.trim().isNotEmpty == true
-        ? explanation!
-        : '解説は準備中です';
+    
+    final explanationText = question.explainLong?.trim().isNotEmpty == true
+        ? question.explainLong!
+        : question.explainShort?.trim().isNotEmpty == true
+            ? question.explainShort!
+            : '解説は準備中です';
+    
+    // 正解の表示
+    String correctAnswerText;
+    switch (question.format) {
+      case 'single_choice':
+        correctAnswerText = '正解: ${question.answer.value}. ${question.getChoiceText(question.answer.value!)}';
+        break;
+      case 'multiple_choice':
+        final indices = question.answer.values ?? [];
+        correctAnswerText = '正解: ${indices.map((i) => '$i. ${question.getChoiceText(i)}').join(', ')}';
+        break;
+      case 'numeric_input':
+        correctAnswerText = '正解: ${question.answer.value}${question.answer.unit ?? ''}';
+        break;
+      default:
+        correctAnswerText = '正解を表示できません';
+    }
+    
+    // ユーザーの回答の表示
+    String userAnswerText = '';
+    if (!wasSkip && !timeExpired && userAnswer != null) {
+      switch (question.format) {
+        case 'single_choice':
+          userAnswerText = 'あなたの回答: ${userAnswer}. ${question.getChoiceText(userAnswer as int)}';
+          break;
+        case 'multiple_choice':
+          final indices = userAnswer as List<int>;
+          userAnswerText = 'あなたの回答: ${indices.map((i) => '$i. ${question.getChoiceText(i)}').join(', ')}';
+          break;
+        case 'numeric_input':
+          userAnswerText = 'あなたの回答: $userAnswer${question.answer.unit ?? ''}';
+          break;
+      }
+    }
+    
     return Card(
       color: theme.colorScheme.surfaceVariant,
       child: Padding(
@@ -471,9 +467,8 @@ class _AnswerFeedbackCard extends StatelessWidget {
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
               ),
-            Text('正解: $correctAnswer'),
-            if (selectedChoice != null && !wasSkip && !timeExpired)
-              Text('あなたの回答: $selectedChoice'),
+            Text(correctAnswerText),
+            if (userAnswerText.isNotEmpty) Text(userAnswerText),
             const SizedBox(height: 12),
             Text(
               explanationText,

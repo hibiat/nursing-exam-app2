@@ -5,7 +5,10 @@ class Attempt {
     required this.mode,
     required this.domainId,
     required this.subdomainId,
-    required this.chosen,
+    required this.answerType,
+    this.chosenSingle,
+    this.chosenMultiple,
+    this.chosenNumeric,
     required this.isCorrect,
     required this.isSkip,
     required this.confidence,
@@ -20,7 +23,10 @@ class Attempt {
   final String mode;
   final String domainId;
   final String subdomainId;
-  final String? chosen;
+  final String answerType; // "single", "multiple", "numeric"
+  final int? chosenSingle; // 単一選択の場合（選択肢のインデックス）
+  final List<int>? chosenMultiple; // 複数選択の場合（選択肢のインデックスリスト）
+  final int? chosenNumeric; // 数値入力の場合
   final bool isCorrect;
   final bool isSkip;
   final String? confidence;
@@ -35,7 +41,10 @@ class Attempt {
       'mode': mode,
       'domainId': domainId,
       'subdomainId': subdomainId,
-      'chosen': chosen,
+      'answerType': answerType,
+      if (chosenSingle != null) 'chosenSingle': chosenSingle,
+      if (chosenMultiple != null) 'chosenMultiple': chosenMultiple,
+      if (chosenNumeric != null) 'chosenNumeric': chosenNumeric,
       'isCorrect': isCorrect,
       'isSkip': isSkip,
       'confidence': confidence,
@@ -44,5 +53,60 @@ class Attempt {
       'answeredAt': answeredAt,
       'difficulty': difficulty,
     };
+  }
+
+  /// userAnswerからAttemptを作成するファクトリメソッド
+  factory Attempt.fromAnswer({
+    required String id,
+    required String questionId,
+    required String mode,
+    required String domainId,
+    required String subdomainId,
+    required String answerType,
+    required dynamic userAnswer,
+    required bool isCorrect,
+    required bool isSkip,
+    required String? confidence,
+    required int responseTimeMs,
+    required bool timeExpired,
+    required DateTime answeredAt,
+    required double difficulty,
+  }) {
+    int? chosenSingle;
+    List<int>? chosenMultiple;
+    int? chosenNumeric;
+
+    if (!isSkip && !timeExpired && userAnswer != null) {
+      switch (answerType) {
+        case 'single':
+          chosenSingle = userAnswer as int;
+          break;
+        case 'multiple':
+          chosenMultiple = (userAnswer as List<int>).toList();
+          break;
+        case 'numeric':
+          chosenNumeric = userAnswer as int;
+          break;
+      }
+    }
+
+    return Attempt(
+      id: id,
+      questionId: questionId,
+      mode: mode,
+      domainId: domainId,
+      subdomainId: subdomainId,
+      answerType: answerType,
+      chosenSingle: chosenSingle,
+      chosenMultiple: chosenMultiple,
+      chosenNumeric: chosenNumeric,
+      isCorrect: isCorrect,
+      isSkip: isSkip,
+      confidence: confidence,
+      responseTimeMs: responseTimeMs,
+      timeExpired: timeExpired,
+      answeredAt: answeredAt,
+      difficulty: difficulty,
+    );
   }
 }

@@ -135,7 +135,7 @@ class StudySessionController extends ChangeNotifier {
   }
 
   Future<void> submitAnswer({
-    required String? chosen,
+    required dynamic userAnswer,
     required bool isSkip,
     required int responseTimeMs,
     required bool timeExpired,
@@ -146,7 +146,7 @@ class StudySessionController extends ChangeNotifier {
     if (question == null) return;
 
     try {
-      final isCorrect = chosen != null && chosen == question.answer && !isSkip && !timeExpired;
+      final isCorrect = !isSkip && !timeExpired && question.isCorrect(userAnswer);
       final wasState = questionStates[question.id];
       final wasIncorrectBefore = (wasState?.lapses ?? 0) > 0;
       final wasMostlyCorrect = (wasState?.lapses ?? 0) == 0 && wasState != null;
@@ -193,14 +193,16 @@ class StudySessionController extends ChangeNotifier {
       questionStates[question.id] = updatedState;
       await questionStateRepository.saveQuestionState(updatedState);
 
+      // Attemptを作成して保存
       await attemptRepository.saveAttempt(
-        Attempt(
+        Attempt.fromAnswer(
           id: '${DateTime.now().millisecondsSinceEpoch}_${question.id}',
           questionId: question.id,
           mode: question.mode,
           domainId: question.domainId,
           subdomainId: question.subdomainId,
-          chosen: chosen,
+          answerType: question.answer.type,
+          userAnswer: userAnswer,
           isCorrect: isCorrect,
           isSkip: isSkip,
           confidence: confidence,

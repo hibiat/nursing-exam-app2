@@ -109,19 +109,22 @@ class _OnboardingExamScreenState extends State<OnboardingExamScreen> {
             (choice) => Padding(
               padding: const EdgeInsets.only(bottom: 12),
               child: OutlinedButton(
-                onPressed: () => controller.submitAnswer(chosen: choice, isSkip: false),
+                onPressed: () => controller.submitAnswer(
+                  userAnswer: choice.index,
+                  isSkip: false,
+                ),
                 style: OutlinedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
                 ),
                 child: Align(
                   alignment: Alignment.centerLeft,
-                  child: Text(choice),
+                  child: Text(choice.text), 
                 ),
               ),
             ),
           ),
           TextButton(
-            onPressed: () => controller.submitAnswer(chosen: null, isSkip: true),
+            onPressed: () => controller.submitAnswer(userAnswer: null, isSkip: true),
             child: const Text('わからない（スキップ）'),
           ),
         ],
