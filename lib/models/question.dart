@@ -1,4 +1,5 @@
-/// 選択肢の構造
+import 'question_source.dart';
+
 class QuestionChoice {
   const QuestionChoice({
     required this.index,
@@ -102,7 +103,6 @@ class Question {
   final Map<String, dynamic> meta;
 
   factory Question.fromJson(Map<String, dynamic> json) {
-    // 新フォーマットのみ対応
     final choicesRaw = json['choices'] as List<dynamic>? ?? [];
     final choices = choicesRaw
         .map((choice) => QuestionChoice.fromJson(choice as Map<String, dynamic>))
@@ -128,15 +128,12 @@ class Question {
     );
   }
 
-  /// 正解かどうかを判定する
   bool isCorrect(dynamic userAnswer) {
     switch (answer.type) {
       case 'single':
-        // 単一選択: userAnswer は選択肢のindex（int）
         return userAnswer is int && userAnswer == answer.value;
       
       case 'multiple':
-        // 複数選択: userAnswer は選択したindexのリスト（List<int>）
         if (userAnswer is! List<int>) return false;
         final correctSet = answer.values?.toSet() ?? {};
         final userSet = userAnswer.toSet();
@@ -144,7 +141,6 @@ class Question {
                correctSet.containsAll(userSet);
       
       case 'numeric':
-        // 数値入力: userAnswer は数値（int）
         return userAnswer is int && userAnswer == answer.value;
       
       default:
@@ -152,12 +148,19 @@ class Question {
     }
   }
 
-  /// 選択肢のテキストを取得
   String getChoiceText(int index) {
     final choice = choices.firstWhere(
       (c) => c.index == index,
       orElse: () => choices.first,
     );
     return choice.text;
+  }
+  QuestionSource? get source {
+    if (!meta.containsKey('source')) return null;
+    try {
+      return QuestionSource.fromJson(meta['source'] as Map<String, dynamic>);
+    } catch (e) {
+      return null;
+    }
   }
 }

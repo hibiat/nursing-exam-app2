@@ -7,6 +7,7 @@ import '../repositories/user_settings_repository.dart';
 import '../state/study_session_controller.dart';
 import '../widgets/score_update_overlay.dart';
 import '../widgets/question_answer_widget.dart';
+import '../widgets/question_source_badge.dart';
 import 'study_summary_screen.dart';
 
 
@@ -269,11 +270,17 @@ class _StudyScreenState extends State<StudyScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        '問題',
-                        style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                              color: Theme.of(context).colorScheme.onSurfaceVariant,
-                            ),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            '問題',
+                            style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                ),
+                          ),
+                          QuestionSourceBadge(source: question.source),
+                        ],
                       ),
                       const SizedBox(height: 8),
                       Text(
