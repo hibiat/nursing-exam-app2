@@ -135,23 +135,6 @@ class _PassingPredictionCardContent extends StatelessWidget {
                 ),
               ],
             ),
-            if (!data.isPassing) ...[
-              const SizedBox(height: 12),
-              if (data.requiredGap > 0)
-                Text(
-                  '必修: 合格ラインまであと${data.requiredGap.toStringAsFixed(1)}点',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-              if (data.generalGap > 0)
-                Text(
-                  '一般: 合格ラインまであと${data.generalGap.toStringAsFixed(1)}点',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-            ],
           ],
         ),
       ),
