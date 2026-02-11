@@ -4,6 +4,7 @@ import '../models/app_theme.dart';
 import '../models/user_settings.dart';
 import '../repositories/user_settings_repository.dart';
 import '../services/theme_service.dart';
+import '../services/learning_history_reset_service.dart';
 import '../utils/user_friendly_error_messages.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -17,6 +18,7 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   final UserSettingsRepository repository = UserSettingsRepository();
+  final LearningHistoryResetService resetService = LearningHistoryResetService();
   late Future<UserSettings> _settingsFuture;
 
   @override
@@ -63,6 +65,37 @@ class _SettingsScreenState extends State<SettingsScreen> {
     setState(() {
       _settingsFuture = Future.value(updated);
     });
+  }
+
+
+  Future<void> _resetLearningHistory() async {
+    final shouldReset = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('学習履歴をリセット'),
+        content: const Text(
+          '学習履歴を削除して、初回模試から始まる状態に戻します。\nこの操作は取り消せません。',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('キャンセル'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('リセットする'),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldReset != true) return;
+
+    await resetService.resetAllLearningHistory();
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('学習履歴をリセットしました')),
+    );
   }
 
   @override
@@ -178,6 +211,32 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                 }
                               : null,
                         ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 16),
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('学習履歴', style: Theme.of(context).textTheme.titleMedium),
+                      const SizedBox(height: 8),
+                      Text(
+                        '履歴を削除して初回模試から再スタートします。',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: Theme.of(context).colorScheme.onSurfaceVariant,
+                            ),
+                      ),
+                      const SizedBox(height: 12),
+                      FilledButton.tonalIcon(
+                        onPressed: _resetLearningHistory,
+                        icon: const Icon(Icons.restart_alt),
+                        label: const Text('学習履歴をリセット'),
                       ),
                     ],
                   ),

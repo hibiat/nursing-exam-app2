@@ -19,18 +19,6 @@ class UserFriendlyExplanations {
 ''';
   }
 
-  static String getPredictionBasis() {
-    return '''
-■ 合格予測について
-過去5年間の合格者データと現在のあなたの成績を比較して、
-合格の可能性を％で表示しています。
-
-例：77% → 同じような成績の人の約8割が合格
-
-※ あくまで目安です。最終的な合否は本番の試験結果によります。
-※ この予測を過信せず、継続的な学習を心がけてください。
-''';
-  }
 
   static String getCalculationBasis() {
     return '''

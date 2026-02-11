@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+
 import '../constants/app_colors.dart';
-import '../services/user_score_service.dart';
 import '../models/user_friendly_explanations.dart';
+import '../screens/domain_scores_screen.dart';
+import '../services/user_score_service.dart';
 import '../utils/user_friendly_error_messages.dart';
 
 /// 合格予測を表示するカード
@@ -57,15 +59,9 @@ class _PassingPredictionCardContent extends StatelessWidget {
     String statusMessage;
 
     if (data.isPassing) {
-      if (data.passingProbability >= 0.9) {
-        statusColor = AppColors.passingSafe;
-        statusIcon = Icons.check_circle;
-        statusMessage = '合格圏内です 🎉 余裕を持って合格できます!';
-      } else {
-        statusColor = AppColors.passingSafe;
-        statusIcon = Icons.check_circle_outline;
-        statusMessage = '合格圏内です 👍 この調子で!';
-      }
+      statusColor = AppColors.passingSafe;
+      statusIcon = Icons.check_circle_outline;
+      statusMessage = '合格ラインを超えています 👍';
     } else if (data.requiredGap <= 5 && data.generalGap <= 25) {
       statusColor = AppColors.passingBorder;
       statusIcon = Icons.trending_up;
@@ -73,7 +69,7 @@ class _PassingPredictionCardContent extends StatelessWidget {
     } else {
       statusColor = AppColors.passingRisk;
       statusIcon = Icons.school;
-      statusMessage = '一緒に頑張りましょう 📚 まだ間に合います!';
+      statusMessage = '基礎から積み上げていきましょう 📚';
     }
 
     return Card(
@@ -98,7 +94,6 @@ class _PassingPredictionCardContent extends StatelessWidget {
                     ),
                   ),
                 ),
-                // 基準説明ボタン
                 IconButton(
                   icon: Icon(Icons.info_outline, color: AppColors.textSecondary),
                   onPressed: () => _showCriteriaDialog(context),
@@ -107,8 +102,6 @@ class _PassingPredictionCardContent extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 16),
-            
-            // 必修・一般のスコア表示
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
@@ -118,7 +111,13 @@ class _PassingPredictionCardContent extends StatelessWidget {
                   maxScore: '50点',
                   rank: data.requiredRank,
                   color: _getRankColor(data.requiredRank),
-                  isPassing: data.requiredScore >= 40,
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const DomainScoresScreen(mode: 'required'),
+                      ),
+                    );
+                  },
                 ),
                 _ScoreChip(
                   label: '一般・状況',
@@ -126,42 +125,16 @@ class _PassingPredictionCardContent extends StatelessWidget {
                   maxScore: '250点',
                   rank: data.generalRank,
                   color: _getRankColor(data.generalRank),
-                  isPassing: data.generalScore >= 150,
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const DomainScoresScreen(mode: 'general'),
+                      ),
+                    );
+                  },
                 ),
               ],
             ),
-            const SizedBox(height: 16),
-            
-            // 合格確率
-            Row(
-              children: [
-                Text(
-                  '合格予測: ',
-                  style: theme.textTheme.bodyMedium,
-                ),
-                Text(
-                  '${(data.passingProbability * 100).toInt()}%',
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    color: statusColor,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            
-            // プログレスバー
-            ClipRRect(
-              borderRadius: BorderRadius.circular(999),
-              child: LinearProgressIndicator(
-                value: data.passingProbability,
-                minHeight: 8,
-                backgroundColor: theme.colorScheme.surfaceVariant,
-                valueColor: AlwaysStoppedAnimation(statusColor),
-              ),
-            ),
-            
-            // 不足点の表示
             if (!data.isPassing) ...[
               const SizedBox(height: 12),
               if (data.requiredGap > 0)
@@ -213,8 +186,6 @@ class _PassingPredictionCardContent extends StatelessWidget {
             children: [
               Text(UserFriendlyExplanations.getCalculationBasis()),
               const SizedBox(height: 12),
-              Text(UserFriendlyExplanations.getPredictionBasis()),
-              const SizedBox(height: 12),
               const Text(
                 '■ このアプリのランク',
                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
@@ -246,7 +217,7 @@ class _ScoreChip extends StatelessWidget {
     required this.maxScore,
     required this.rank,
     required this.color,
-    required this.isPassing,
+    required this.onTap,
   });
 
   final String label;
@@ -254,67 +225,83 @@ class _ScoreChip extends StatelessWidget {
   final String maxScore;
   final String rank;
   final Color color;
-  final bool isPassing;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: color.withOpacity(0.3),
-          width: 2,
-        ),
-      ),
-      child: Column(
-        children: [
-          Text(
-            label,
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: AppColors.textSecondary,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.baseline,
-            textBaseline: TextBaseline.alphabetic,
-            children: [
-              Text(
-                score,
-                style: theme.textTheme.titleLarge?.copyWith(
-                  color: color,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              Text(
-                ' / $maxScore',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: AppColors.textSecondary,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 4),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+    return Expanded(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 4),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: onTap,
+          child: Container(
+            padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: color,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Text(
-              'ランク$rank',
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
+              color: color.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: color.withOpacity(0.3),
+                width: 2,
               ),
             ),
+            child: Column(
+              children: [
+                Text(
+                  label,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.baseline,
+                  textBaseline: TextBaseline.alphabetic,
+                  children: [
+                    Text(
+                      score,
+                      style: theme.textTheme.titleLarge?.copyWith(
+                        color: color,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    Text(
+                      ' / $maxScore',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: color,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    'ランク$rank',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'タップで分野別',
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ],
+            ),
           ),
-        ],
+        ),
       ),
     );
   }

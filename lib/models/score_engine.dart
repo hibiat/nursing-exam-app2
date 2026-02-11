@@ -82,27 +82,6 @@ class ScoreEngine {
     return 'D';
   }
 
-  /// 合格確率を計算
-  double calculatePassingProbability({
-    required double requiredScore,
-    required double generalScore,
-  }) {
-    final requiredPass = requiredScore >= 40;
-    final generalPass = generalScore >= 150;
-
-    if (!requiredPass || !generalPass) {
-      if (requiredScore >= 35 && generalScore >= 125) {
-        return 0.5;
-      }
-      return 0.3;
-    }
-
-    final requiredMargin = ((requiredScore - 40) / 10).clamp(0, 1);
-    final generalMargin = ((generalScore - 150) / 50).clamp(0, 1);
-    final avgMargin = (requiredMargin + generalMargin) / 2;
-    
-    return (0.75 + avgMargin * 0.23).clamp(0.3, 0.98);
-  }
 
   double _stateWeight({
     required bool isCorrect,

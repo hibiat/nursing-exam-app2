@@ -78,12 +78,18 @@ class _HomeScreenState extends State<HomeScreen> {
               IconButton(
                 icon: const Icon(Icons.settings),
                 tooltip: '設定',
-                onPressed: () {
-                  Navigator.of(context).push(
+                onPressed: () async {
+                  await Navigator.of(context).push(
                     MaterialPageRoute(
                       builder: (_) => SettingsScreen(themeService: widget.themeService),
                     ),
                   );
+                  final updatedProfile = await userProfileRepository.fetchProfile();
+                  if (!mounted) return;
+                  setState(() {
+                    _profile = updatedProfile;
+                    _onboardingDialogShown = false;
+                  });
                 },
               ),
             ],
