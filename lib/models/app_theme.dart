@@ -15,7 +15,7 @@ enum AppTheme {
   static AppTheme fromStorage(String? raw) {
     return AppTheme.values.firstWhere(
       (theme) => theme.name == raw,
-      orElse: () => AppTheme.cool,
+      orElse: () => AppTheme.cute,
     );
   }
 }

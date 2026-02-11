@@ -9,7 +9,7 @@ class ThemeService extends ChangeNotifier {
       : _repository = repository ?? UserSettingsRepository();
 
   final UserSettingsRepository _repository;
-  AppTheme _currentTheme = AppTheme.cool;
+  AppTheme _currentTheme = AppTheme.cute;
 
   AppTheme get currentTheme => _currentTheme;
 

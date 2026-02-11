@@ -6,7 +6,6 @@ import '../services/auth_service.dart';
 import '../services/theme_service.dart';
 import '../utils/user_friendly_error_messages.dart';
 import '../widgets/passing_prediction_card.dart';
-import '../widgets/score_summary_card.dart';
 import '../widgets/study_goal_card.dart';
 import 'onboarding_exam_screen.dart';
 import 'select_screen.dart';
@@ -95,13 +94,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: _MainActionCard(
                   needsOnboarding: _profile?.onboardingCompleted != true,
                   onStartOnboarding: _startOnboardingExam,
-                  onStartRecommendedStudy: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => const StudyScreen.recommended(mode: 'required'),
-                      ),
-                    );
-                  },
                 ),
               ),
               const SliverToBoxAdapter(child: PassingPredictionCard()),
@@ -114,12 +106,6 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     );
                   },
-                ),
-              ),
-              SliverToBoxAdapter(
-                child: ScoreSummaryCard(
-                  onStartOnboarding:
-                      _profile?.onboardingCompleted == true ? null : _startOnboardingExam,
                 ),
               ),
               SliverToBoxAdapter(
@@ -243,41 +229,57 @@ class _MainActionCard extends StatelessWidget {
   const _MainActionCard({
     required this.needsOnboarding,
     required this.onStartOnboarding,
-    required this.onStartRecommendedStudy,
   });
 
   final bool needsOnboarding;
   final VoidCallback onStartOnboarding;
-  final VoidCallback onStartRecommendedStudy;
 
   @override
   Widget build(BuildContext context) {
-    return Card(
+    if (!needsOnboarding) {
+      return const SizedBox.shrink();
+    }
+
+    return Container(
       margin: const EdgeInsets.fromLTRB(16, 16, 16, 4),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFFFFEDF5), Color(0xFFFFF6EA)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFFFD7E8), width: 1.2),
+      ),
       child: Padding(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.all(22),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text(
-              needsOnboarding ? '最初に実力を測定しましょう' : '今日のおすすめ学習',
-              style: Theme.of(context)
-                  .textTheme
-                  .titleMedium
-                  ?.copyWith(fontWeight: FontWeight.bold),
+              '最初に実力を測定しましょう',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: const Color(0xFFB24B7F),
+                  ),
             ),
             const SizedBox(height: 8),
             Text(
-              needsOnboarding
-                  ? '10問のショート模試で、現在地を把握できます。'
-                  : '弱点領域から優先して出題します。',
+              '短時間のショート模試で、現在地をやさしくチェックできます。',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: const Color(0xFF6F5A66),
+                  ),
             ),
             const SizedBox(height: 16),
             FilledButton.icon(
-              onPressed: needsOnboarding ? onStartOnboarding : onStartRecommendedStudy,
+              onPressed: onStartOnboarding,
               icon: const Icon(Icons.play_arrow),
-              label: Text(needsOnboarding ? '初期スコア測定を開始' : '学習を始める'),
-              style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(56)),
+              label: const Text('初期スコア測定を開始'),
+              style: FilledButton.styleFrom(
+                minimumSize: const Size.fromHeight(56),
+                backgroundColor: const Color(0xFFE56AA3),
+                foregroundColor: Colors.white,
+              ),
             ),
           ],
         ),
