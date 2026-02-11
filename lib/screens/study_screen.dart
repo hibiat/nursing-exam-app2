@@ -5,11 +5,10 @@ import 'package:flutter/material.dart';
 import '../models/question.dart';
 import '../repositories/user_settings_repository.dart';
 import '../state/study_session_controller.dart';
-import '../widgets/score_update_overlay.dart';
 import '../widgets/question_answer_widget.dart';
 import '../widgets/question_source_badge.dart';
 import 'study_summary_screen.dart';
-
+import '../utils/user_friendly_error_messages.dart';
 
 class StudyScreen extends StatefulWidget {
   const StudyScreen({
@@ -146,7 +145,7 @@ class _StudyScreenState extends State<StudyScreen> {
   void _startTimer() {
     timer?.cancel();
     timer = Timer.periodic(const Duration(milliseconds: _timerTickMs), (_) {
-      if (answered || controller.showOverlay) return;
+      if (answered) return;
       setState(() {
         remainingMs = (remainingMs - _timerTickMs).clamp(0, _timeLimitMs);
         elapsedMs = (_timeLimitMs - remainingMs).clamp(0, _timeLimitMs);
@@ -204,7 +203,7 @@ class _StudyScreenState extends State<StudyScreen> {
         if (snapshot.hasError) {
           return Scaffold(
             body: Center(
-              child: Text('設定の読み込みに失敗しました: ${snapshot.error}'),
+              child: Text(UserFriendlyErrorMessages.getErrorMessage(snapshot.error)),
             ),
           );
         }
@@ -225,7 +224,7 @@ class _StudyScreenState extends State<StudyScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text('読み込みに失敗しました: ${controller.loadError}'),
+              Text(UserFriendlyErrorMessages.getErrorMessage(controller.loadError)),
               const SizedBox(height: 12),
               FilledButton(
                 onPressed: controller.start,
@@ -357,18 +356,6 @@ class _StudyScreenState extends State<StudyScreen> {
               ),
             ],
           ),
-          if (controller.showOverlay)
-            ScoreUpdateOverlay(
-              rank: controller.overallRank,
-              lastRank: controller.lastOverallRank,
-              overallScore: controller.overallScore,
-              skillProgress: controller.latestSkillProgress,
-              showStreakPraise: controller.showStreakPraise,
-              streakMessage: controller.streakMessage,
-              streakCount: controller.streakCount,
-              requiredBorderLabel: null,
-              onClose: controller.dismissOverlay,
-            ),
         ],
       ),
     );

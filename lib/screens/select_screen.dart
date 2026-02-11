@@ -4,6 +4,7 @@ import '../models/taxonomy.dart';
 import '../repositories/question_state_repository.dart';
 import '../services/taxonomy_service.dart';
 import 'study_screen.dart';
+import '../utils/user_friendly_error_messages.dart';
 
 class SelectScreen extends StatefulWidget {
   const SelectScreen({super.key, required this.mode});
@@ -50,7 +51,7 @@ class _SelectScreenState extends State<SelectScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Text('分類データの読み込みに失敗しました'),
+                Text(UserFriendlyErrorMessages.getErrorMessage(snapshot.error)),
                 const SizedBox(height: 12),
                 FilledButton(
                   onPressed: () => setState(() {}),
