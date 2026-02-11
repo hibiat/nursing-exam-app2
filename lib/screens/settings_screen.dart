@@ -1,10 +1,16 @@
 import 'package:flutter/material.dart';
 
+import '../models/app_theme.dart';
 import '../models/user_settings.dart';
 import '../repositories/user_settings_repository.dart';
+import '../services/theme_service.dart';
+import '../services/learning_history_reset_service.dart';
+import '../utils/user_friendly_error_messages.dart';
 
 class SettingsScreen extends StatefulWidget {
-  const SettingsScreen({super.key});
+  const SettingsScreen({super.key, required this.themeService});
+
+  final ThemeService themeService;
 
   @override
   State<SettingsScreen> createState() => _SettingsScreenState();
@@ -12,6 +18,7 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   final UserSettingsRepository repository = UserSettingsRepository();
+  final LearningHistoryResetService resetService = LearningHistoryResetService();
   late Future<UserSettings> _settingsFuture;
 
   @override
@@ -25,6 +32,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final updated = UserSettings(
       timeLimitSeconds: seconds,
       showTimer: currentSettings.showTimer,
+      theme: currentSettings.theme,
     );
     await repository.saveSettings(updated);
     setState(() {
@@ -37,11 +45,57 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final updated = UserSettings(
       timeLimitSeconds: currentSettings.timeLimitSeconds,
       showTimer: show,
+      theme: currentSettings.theme,
     );
     await repository.saveSettings(updated);
     setState(() {
       _settingsFuture = Future.value(updated);
     });
+  }
+
+  Future<void> _updateTheme(AppTheme theme) async {
+    final currentSettings = await _settingsFuture;
+    final updated = UserSettings(
+      timeLimitSeconds: currentSettings.timeLimitSeconds,
+      showTimer: currentSettings.showTimer,
+      theme: theme,
+    );
+    await repository.saveSettings(updated);
+    widget.themeService.changeTheme(theme);
+    setState(() {
+      _settingsFuture = Future.value(updated);
+    });
+  }
+
+
+  Future<void> _resetLearningHistory() async {
+    final shouldReset = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('学習履歴をリセット'),
+        content: const Text(
+          '学習履歴を削除して、初回模試から始まる状態に戻します。\nこの操作は取り消せません。',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('キャンセル'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('リセットする'),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldReset != true) return;
+
+    await resetService.resetAllLearningHistory();
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('学習履歴をリセットしました')),
+    );
   }
 
   @override
@@ -59,7 +113,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Text('設定の読み込みに失敗しました'),
+                  Text(UserFriendlyErrorMessages.getErrorMessage(snapshot.error)),
                   const SizedBox(height: 12),
                   FilledButton(
                     onPressed: () => setState(() {
@@ -85,10 +139,31 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        'タイマー表示',
-                        style: Theme.of(context).textTheme.titleMedium,
+                      Text('テーマ', style: Theme.of(context).textTheme.titleMedium),
+                      const SizedBox(height: 12),
+                      ...AppTheme.values.map(
+                        (theme) => RadioListTile<AppTheme>(
+                          title: Text(theme.displayName),
+                          value: theme,
+                          groupValue: settings.theme,
+                          onChanged: (value) {
+                            if (value == null) return;
+                            _updateTheme(value);
+                          },
+                        ),
                       ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('タイマー表示', style: Theme.of(context).textTheme.titleMedium),
                       const SizedBox(height: 8),
                       Text(
                         '本番を意識した学習をしたい場合にONにしてください',
@@ -108,18 +183,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
               ),
               const SizedBox(height: 16),
-              
-              // 制限時間設定
               Card(
                 child: Padding(
                   padding: const EdgeInsets.all(16),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        '1問あたりの制限時間',
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
+                      Text('1問あたりの制限時間', style: Theme.of(context).textTheme.titleMedium),
                       const SizedBox(height: 8),
                       Text(
                         'タイマー表示がONの時のみ有効です',
@@ -131,9 +201,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ...[60, 90, 120].map(
                         (seconds) => RadioListTile<int>(
                           title: Text('${seconds}秒'),
-                          subtitle: seconds == 90
-                              ? const Text('推奨: 国試の平均時間')
-                              : null,
+                          subtitle: seconds == 90 ? const Text('推奨: 国試の平均時間') : null,
                           value: seconds,
                           groupValue: settings.timeLimitSeconds,
                           onChanged: settings.showTimer
@@ -148,12 +216,31 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                 ),
               ),
+
               const SizedBox(height: 16),
-              Text(
-                '※ 国試の制限時間は問題数から逆算した秒数です。後で調整可能です。',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('学習履歴', style: Theme.of(context).textTheme.titleMedium),
+                      const SizedBox(height: 8),
+                      Text(
+                        '履歴を削除して初回模試から再スタートします。',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: Theme.of(context).colorScheme.onSurfaceVariant,
+                            ),
+                      ),
+                      const SizedBox(height: 12),
+                      FilledButton.tonalIcon(
+                        onPressed: _resetLearningHistory,
+                        icon: const Icon(Icons.restart_alt),
+                        label: const Text('学習履歴をリセット'),
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ],
           );
