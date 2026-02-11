@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../constants/app_colors.dart';
 import '../constants/encouragement_messages.dart';
 import '../services/user_score_service.dart';
-import '../services/taxonomy_service.dart';
+import '../utils/user_friendly_error_messages.dart';
 
 /// 今日の学習目標を表示するカード
 class StudyGoalCard extends StatelessWidget {
@@ -36,7 +36,7 @@ class StudyGoalCard extends StatelessWidget {
             margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: Padding(
               padding: const EdgeInsets.all(20),
-              child: Text('データ取得エラー: ${snapshot.error}'),
+              child: Text(UserFriendlyErrorMessages.getErrorMessage(snapshot.error)),
             ),
           );
         }

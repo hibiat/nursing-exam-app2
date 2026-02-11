@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../constants/app_colors.dart';
 import '../services/user_score_service.dart';
+import '../models/user_friendly_explanations.dart';
+import '../utils/user_friendly_error_messages.dart';
 
 /// 合格予測を表示するカード
 class PassingPredictionCard extends StatelessWidget {
@@ -29,7 +31,7 @@ class PassingPredictionCard extends StatelessWidget {
             margin: const EdgeInsets.all(16),
             child: Padding(
               padding: const EdgeInsets.all(20),
-              child: Text('データ取得エラー: ${snapshot.error}'),
+              child: Text(UserFriendlyErrorMessages.getErrorMessage(snapshot.error)),
             ),
           );
         }
@@ -209,35 +211,20 @@ class _PassingPredictionCardContent extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text(
-                '■ 必修問題',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-              ),
-              const SizedBox(height: 8),
-              const Text('・50問50点満点\n・合格ライン: 40点以上(80%)\n・この基準を満たさないと不合格'),
-              const SizedBox(height: 16),
-              const Text(
-                '■ 一般・状況設定問題',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-              ),
-              const SizedBox(height: 8),
-              const Text('・250点満点\n・合格ライン: 約150〜175点(60〜70%)\n・毎年変動します'),
-              const SizedBox(height: 16),
+              Text(UserFriendlyExplanations.getCalculationBasis()),
+              const SizedBox(height: 12),
+              Text(UserFriendlyExplanations.getPredictionBasis()),
+              const SizedBox(height: 12),
               const Text(
                 '■ このアプリのランク',
                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
               ),
               const SizedBox(height: 8),
-              _RankRow('S', '余裕で合格', AppColors.success),
-              _RankRow('A', '安全圏', AppColors.success),
-              _RankRow('B', '合格ライン', AppColors.primary),
-              _RankRow('C', 'ギリギリ', AppColors.warning),
-              _RankRow('D', '危険圏', AppColors.scoreDown),
-              const SizedBox(height: 12),
-              const Text(
-                '※ 必修と一般、両方の基準を満たす必要があります',
-                style: TextStyle(fontSize: 12, color: Colors.grey),
-              ),
+              _RankRow('S', '高得点域', AppColors.success),
+              _RankRow('A', '安定域', AppColors.success),
+              _RankRow('B', '合格ライン域', AppColors.primary),
+              _RankRow('C', '要注意域', AppColors.warning),
+              _RankRow('D', '基礎固め域', AppColors.scoreDown),
             ],
           ),
         ),

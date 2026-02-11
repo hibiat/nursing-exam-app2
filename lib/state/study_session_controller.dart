@@ -65,9 +65,6 @@ class StudySessionController extends ChangeNotifier {
   String? overallRank;
   double lastOverallScore = 40; // 必修の合格ライン
   double overallScore = 40;
-  bool showOverlay = false;
-  bool showStreakPraise = true;
-  String? streakMessage;
   int streakCount = 0;
   bool isLoading = true;
   String? loadError;
@@ -227,15 +224,6 @@ class StudySessionController extends ChangeNotifier {
     }
   }
 
-  void dismissOverlay() {
-    showOverlay = false;
-    notifyListeners();
-  }
-
-  void resetStreakPraise() {
-    showStreakPraise = false;
-    notifyListeners();
-  }
 
   void advanceToNextQuestion() {
     print('📍 advanceToNextQuestion開始');
@@ -354,23 +342,16 @@ class StudySessionController extends ChangeNotifier {
         lastUnitCompletedAt!.year != now.year ||
         lastUnitCompletedAt!.month != now.month ||
         lastUnitCompletedAt!.day != now.day;
-    showStreakPraise = isFirstToday;
-
     if (isFirstToday) {
       final updatedStreak = _calculateStreak(now);
       streakCount = updatedStreak.currentStreak;
-      streakMessage = _buildStreakMessage(streakCount);
       await streakStateRepository.saveStreakState(updatedStreak);
       lastUnitCompletedAt = updatedStreak.lastUnitCompletedAt;
       lastStudyDate = updatedStreak.lastStudyDate;
-    } else {
-      streakMessage = null;
     }
 
     _refreshSkillProgressSnapshot();
     _snapshotSkillScores();
-    await Future.delayed(const Duration(milliseconds: 320));
-    showOverlay = true;
     notifyListeners();
   }
 
@@ -509,9 +490,4 @@ class StudySessionController extends ChangeNotifier {
     );
   }
 
-  String _buildStreakMessage(int streak) {
-    if (streak >= 5) return '連続${streak}日達成!この調子でいきましょう!';
-    if (streak >= 3) return '連続${streak}日目!すごいです!';
-    return '連続学習${streak}日目!いいスタートです!';
-  }
 }
