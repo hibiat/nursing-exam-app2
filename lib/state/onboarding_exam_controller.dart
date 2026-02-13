@@ -44,7 +44,7 @@ class OnboardingExamController extends ChangeNotifier {
   int get totalQuestions => questions.length;
 
   double get summaryScore {
-    if (skillStates.isEmpty) return 40; // デフォルト: 必修の合格ライン
+    if (skillStates.isEmpty) return 0;
     
     // 必修と一般を分けて計算して平均
     final requiredStates = skillStates.entries
@@ -61,10 +61,10 @@ class OnboardingExamController extends ChangeNotifier {
     
     // 必修は50点満点、一般は250点満点なので正規化して平均
     final requiredAvg = requiredScores.isEmpty 
-        ? 40.0 
+        ? 0.0 
         : requiredScores.reduce((a, b) => a + b) / requiredScores.length;
     final generalAvg = generalScores.isEmpty 
-        ? 162.5 
+        ? 0.0 
         : generalScores.reduce((a, b) => a + b) / generalScores.length;
     
     // 両方を50点満点に正規化して平均
@@ -103,8 +103,8 @@ class OnboardingExamController extends ChangeNotifier {
     await _loadSkillScopes();
     
     final selected = <Question>[
-      ..._pickSample(requiredQuestions, 5),
-      ..._pickSample(generalQuestions, 5),
+      ..._pickRequiredBySubdomain(requiredQuestions),
+      ..._pickGeneralByDomain(generalQuestions),
     ];
     
     if (selected.isEmpty) {
@@ -182,11 +182,32 @@ class OnboardingExamController extends ChangeNotifier {
       ..addAll(generalDomains.map((domain) => domain.id));
   }
 
-  List<Question> _pickSample(List<Question> source, int count) {
-    if (source.isEmpty) return [];
-    final items = [...source]..shuffle(Random());
-    if (items.length <= count) return items;
-    return items.take(count).toList();
+  List<Question> _pickRequiredBySubdomain(List<Question> source) {
+    final grouped = <String, List<Question>>{};
+    for (final q in source) {
+      grouped.putIfAbsent(q.subdomainId, () => []).add(q);
+    }
+    final result = <Question>[];
+    for (final id in grouped.keys) {
+      final questions = grouped[id]!;
+      questions.shuffle(Random());
+      result.add(questions.first);
+    }
+    return result;
+  }
+
+  List<Question> _pickGeneralByDomain(List<Question> source) {
+    final grouped = <String, List<Question>>{};
+    for (final q in source) {
+      grouped.putIfAbsent(q.domainId, () => []).add(q);
+    }
+    final result = <Question>[];
+    for (final id in grouped.keys) {
+      final questions = grouped[id]!;
+      questions.shuffle(Random());
+      result.add(questions.first);
+    }
+    return result;
   }
 
   Future<void> _completeExam() async {
@@ -196,7 +217,7 @@ class OnboardingExamController extends ChangeNotifier {
       final state = skillStates[skillId] ??
           SkillState(
             skillId: skillId,
-            theta: 0,
+            theta: -8,
             nEff: 0,
             lastUpdatedAt: now,
           );

@@ -82,7 +82,7 @@ class DomainScoresScreen extends StatelessWidget {
         final state = states[subdomain.id] ??
             SkillState(
               skillId: subdomain.id,
-              theta: 0,
+              theta: -8,
               nEff: 0,
               lastUpdatedAt: DateTime.fromMillisecondsSinceEpoch(0),
             );
@@ -104,7 +104,7 @@ class DomainScoresScreen extends StatelessWidget {
       final state = states[domain.id] ??
           SkillState(
             skillId: domain.id,
-            theta: 0,
+            theta: -8,
             nEff: 0,
             lastUpdatedAt: DateTime.fromMillisecondsSinceEpoch(0),
           );

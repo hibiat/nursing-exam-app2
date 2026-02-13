@@ -6,6 +6,7 @@ import '../repositories/user_settings_repository.dart';
 import '../services/theme_service.dart';
 import '../services/learning_history_reset_service.dart';
 import '../utils/user_friendly_error_messages.dart';
+import '../widgets/source_attribution_section.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key, required this.themeService});
@@ -20,11 +21,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
   final UserSettingsRepository repository = UserSettingsRepository();
   final LearningHistoryResetService resetService = LearningHistoryResetService();
   late Future<UserSettings> _settingsFuture;
+  final TextEditingController _customSecondsController = TextEditingController();
+
+  static const List<int> _presetSeconds = [60, 80, 120];
 
   @override
   void initState() {
     super.initState();
     _settingsFuture = repository.fetchSettings();
+  }
+
+  @override
+  void dispose() {
+    _customSecondsController.dispose();
+    super.dispose();
   }
 
   Future<void> _updateTimeLimit(int seconds) async {
@@ -130,6 +140,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 timeLimitSeconds: UserSettingsRepository.defaultTimeLimitSeconds,
                 showTimer: false,
               );
+          final isCustomTime = !_presetSeconds.contains(settings.timeLimitSeconds);
+          if (isCustomTime && _customSecondsController.text != '${settings.timeLimitSeconds}') {
+            _customSecondsController.text = '${settings.timeLimitSeconds}';
+          }
           return ListView(
             padding: const EdgeInsets.all(16),
             children: [
@@ -198,18 +212,50 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             ),
                       ),
                       const SizedBox(height: 12),
-                      ...[60, 90, 120].map(
+                      ..._presetSeconds.map(
                         (seconds) => RadioListTile<int>(
                           title: Text('${seconds}秒'),
-                          subtitle: seconds == 90 ? const Text('推奨: 国試の平均時間') : null,
+                          subtitle: seconds == 80 ? const Text('推奨: 本番に近い設定') : null,
                           value: seconds,
-                          groupValue: settings.timeLimitSeconds,
+                          groupValue: isCustomTime ? -1 : settings.timeLimitSeconds,
                           onChanged: settings.showTimer
                               ? (value) {
                                   if (value == null) return;
                                   _updateTimeLimit(value);
                                 }
                               : null,
+                        ),
+                      ),
+                      RadioListTile<int>(
+                        title: const Text('カスタム'),
+                        subtitle: const Text('自由に秒数を設定'),
+                        value: -1,
+                        groupValue: isCustomTime ? -1 : settings.timeLimitSeconds,
+                        onChanged: settings.showTimer
+                            ? (_) {
+                                final parsed = int.tryParse(_customSecondsController.text);
+                                if (parsed != null && parsed > 0) {
+                                  _updateTimeLimit(parsed);
+                                }
+                              }
+                            : null,
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: TextField(
+                          controller: _customSecondsController,
+                          keyboardType: TextInputType.number,
+                          enabled: settings.showTimer,
+                          decoration: const InputDecoration(
+                            labelText: 'カスタム秒数',
+                            suffixText: '秒',
+                          ),
+                          onSubmitted: (value) {
+                            final parsed = int.tryParse(value);
+                            if (parsed != null && parsed > 0) {
+                              _updateTimeLimit(parsed);
+                            }
+                          },
                         ),
                       ),
                     ],
@@ -240,6 +286,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ),
                     ],
                   ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              const Card(
+                child: Padding(
+                  padding: EdgeInsets.all(16),
+                  child: SourceAttributionSection(),
                 ),
               ),
             ],
