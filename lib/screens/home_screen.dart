@@ -6,6 +6,7 @@ import '../services/auth_service.dart';
 import '../services/theme_service.dart';
 import '../utils/user_friendly_error_messages.dart';
 import '../widgets/passing_prediction_card.dart';
+import '../widgets/source_attribution_section.dart';
 import '../widgets/study_goal_card.dart';
 import 'onboarding_exam_screen.dart';
 import 'select_screen.dart';
@@ -26,6 +27,7 @@ class _HomeScreenState extends State<HomeScreen> {
   final UserProfileRepository userProfileRepository = UserProfileRepository();
   UserProfile? _profile;
   bool _onboardingDialogShown = false;
+  int _selectedTab = 0;
 
   @override
   void initState() {
@@ -35,8 +37,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _initAuth() async {
     final user = await AuthService.ensureSignedIn();
-    print('Signed in uid=${user.uid}');
     _profile = await userProfileRepository.fetchProfile();
+    print('Signed in uid=${user.uid}');
   }
 
   void _retryAuth() {
@@ -51,9 +53,7 @@ class _HomeScreenState extends State<HomeScreen> {
       future: _authFuture,
       builder: (context, snapshot) {
         if (snapshot.connectionState != ConnectionState.done) {
-          return const Scaffold(
-            body: Center(child: CircularProgressIndicator()),
-          );
+          return const Scaffold(body: Center(child: CircularProgressIndicator()));
         }
         if (snapshot.hasError) {
           return Scaffold(
@@ -72,88 +72,106 @@ class _HomeScreenState extends State<HomeScreen> {
         _maybeShowOnboardingDialog();
 
         return Scaffold(
-          appBar: AppBar(
-            title: const Text('看護師国家試験アプリ'),
-            actions: [
-              IconButton(
-                icon: const Icon(Icons.settings),
-                tooltip: '設定',
-                onPressed: () async {
-                  await Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => SettingsScreen(themeService: widget.themeService),
-                    ),
-                  );
-                  final updatedProfile = await userProfileRepository.fetchProfile();
-                  if (!mounted) return;
-                  setState(() {
-                    _profile = updatedProfile;
-                    _onboardingDialogShown = false;
-                  });
-                },
-              ),
+          appBar: AppBar(title: const Text('看護師国家試験アプリ')),
+          body: IndexedStack(
+            index: _selectedTab,
+            children: [
+              _buildHomeTab(),
+              _buildStudyTab(),
+              _buildOtherTab(),
             ],
           ),
-          body: CustomScrollView(
-            slivers: [
-              SliverToBoxAdapter(
-                child: _MainActionCard(
-                  needsOnboarding: _profile?.onboardingCompleted != true,
-                  onStartOnboarding: _startOnboardingExam,
-                ),
-              ),
-              const SliverToBoxAdapter(child: PassingPredictionCard()),
-              SliverToBoxAdapter(
-                child: StudyGoalCard(
-                  onStartStudy: (mode) {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => StudyScreen.recommended(mode: mode),
-                      ),
-                    );
-                  },
-                ),
-              ),
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-                  child: Text(
-                    '領域を選んで学習',
-                    style: Theme.of(context)
-                        .textTheme
-                        .titleLarge
-                        ?.copyWith(fontWeight: FontWeight.bold),
-                  ),
-                ),
-              ),
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: _DomainCategoryCard(
-                          title: '必修問題',
-                          icon: Icons.local_hospital,
-                          onTap: () => _openSelectScreen('required'),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _DomainCategoryCard(
-                          title: '一般・状況設定',
-                          icon: Icons.menu_book,
-                          onTap: () => _openSelectScreen('general'),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
+          bottomNavigationBar: NavigationBar(
+            selectedIndex: _selectedTab,
+            onDestinationSelected: (index) => setState(() => _selectedTab = index),
+            destinations: const [
+              NavigationDestination(icon: Icon(Icons.home_outlined), selectedIcon: Icon(Icons.home), label: 'ホーム'),
+              NavigationDestination(icon: Icon(Icons.school_outlined), selectedIcon: Icon(Icons.school), label: '学習'),
+              NavigationDestination(icon: Icon(Icons.more_horiz), selectedIcon: Icon(Icons.more_horiz), label: 'その他'),
             ],
           ),
         );
       },
+    );
+  }
+
+  Widget _buildHomeTab() {
+    return CustomScrollView(
+      slivers: [
+        SliverToBoxAdapter(
+          child: _MainActionCard(
+            needsOnboarding: _profile?.onboardingCompleted != true,
+            onStartOnboarding: _startOnboardingExam,
+          ),
+        ),
+        const SliverToBoxAdapter(child: PassingPredictionCard()),
+        SliverToBoxAdapter(
+          child: StudyGoalCard(
+            onStartStudy: (mode) {
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => StudyScreen.recommended(mode: mode)),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStudyTab() {
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        FilledButton.icon(
+          onPressed: _startOnboardingExam,
+          icon: const Icon(Icons.play_circle_outline),
+          label: const Text('ショート模試を開始'),
+        ),
+        const SizedBox(height: 12),
+        _DomainCategoryCard(
+          title: '必修問題',
+          icon: Icons.local_hospital,
+          onTap: () => _openSelectScreen('required'),
+        ),
+        const SizedBox(height: 12),
+        _DomainCategoryCard(
+          title: '一般・状況設定',
+          icon: Icons.menu_book,
+          onTap: () => _openSelectScreen('general'),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildOtherTab() {
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        Card(
+          child: ListTile(
+            leading: const Icon(Icons.settings),
+            title: const Text('設定'),
+            onTap: () async {
+              await Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => SettingsScreen(themeService: widget.themeService)),
+              );
+              final updatedProfile = await userProfileRepository.fetchProfile();
+              if (!mounted) return;
+              setState(() {
+                _profile = updatedProfile;
+                _onboardingDialogShown = false;
+              });
+            },
+          ),
+        ),
+        const SizedBox(height: 12),
+        const Card(
+          child: Padding(
+            padding: EdgeInsets.all(16),
+            child: SourceAttributionSection(),
+          ),
+        ),
+      ],
     );
   }
 
@@ -178,19 +196,13 @@ class _HomeScreenState extends State<HomeScreen> {
             scrollable: true,
             title: const Text('ショート模試を始めますか?'),
             content: const Text(
-              '評価ではなく、今の実力の目安を知るためのミニテストです。\n'
-              '10問ほど解いて、初期スコアを推定します。\n'
+              '評価ではなく、今の実力の目安を知るための測定です。\n'
+              '複数分野から幅広く出題されます。\n'
               '後からいつでも実施できます。',
             ),
             actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(false),
-                child: const Text('後で'),
-              ),
-              FilledButton(
-                onPressed: () => Navigator.of(context).pop(true),
-                child: const Text('今すぐ実施'),
-              ),
+              TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('後で')),
+              FilledButton(onPressed: () => Navigator.of(context).pop(true), child: const Text('今すぐ実施')),
             ],
           );
         },
@@ -221,9 +233,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _startOnboardingExam() async {
-    await Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const OnboardingExamScreen()),
-    );
+    await Navigator.of(context).push(MaterialPageRoute(builder: (_) => const OnboardingExamScreen()));
     final updatedProfile = await userProfileRepository.fetchProfile();
     setState(() {
       _profile = updatedProfile;
@@ -232,10 +242,7 @@ class _HomeScreenState extends State<HomeScreen> {
 }
 
 class _MainActionCard extends StatelessWidget {
-  const _MainActionCard({
-    required this.needsOnboarding,
-    required this.onStartOnboarding,
-  });
+  const _MainActionCard({required this.needsOnboarding, required this.onStartOnboarding});
 
   final bool needsOnboarding;
   final VoidCallback onStartOnboarding;
@@ -246,16 +253,18 @@ class _MainActionCard extends StatelessWidget {
       return const SizedBox.shrink();
     }
 
+    final theme = Theme.of(context);
+
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 16, 16, 4),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFFFFEDF5), Color(0xFFFFF6EA)],
+        gradient: LinearGradient(
+          colors: [theme.colorScheme.primaryContainer, theme.colorScheme.secondaryContainer],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFFFD7E8), width: 1.2),
+        border: Border.all(color: theme.colorScheme.outlineVariant, width: 1.2),
       ),
       child: Padding(
         padding: const EdgeInsets.all(22),
@@ -266,14 +275,14 @@ class _MainActionCard extends StatelessWidget {
               '最初に実力を測定しましょう',
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.bold,
-                    color: const Color(0xFFB24B7F),
+                    color: theme.colorScheme.onPrimaryContainer,
                   ),
             ),
             const SizedBox(height: 8),
             Text(
-              '短時間のショート模試で、現在地をやさしくチェックできます。',
+              'ショート模試で現在地をチェックできます。',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: const Color(0xFF6F5A66),
+                    color: theme.colorScheme.onSecondaryContainer,
                   ),
             ),
             const SizedBox(height: 16),
@@ -281,11 +290,7 @@ class _MainActionCard extends StatelessWidget {
               onPressed: onStartOnboarding,
               icon: const Icon(Icons.play_arrow),
               label: const Text('初期スコア測定を開始'),
-              style: FilledButton.styleFrom(
-                minimumSize: const Size.fromHeight(56),
-                backgroundColor: const Color(0xFFE56AA3),
-                foregroundColor: Colors.white,
-              ),
+              style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(56)),
             ),
           ],
         ),
@@ -295,11 +300,7 @@ class _MainActionCard extends StatelessWidget {
 }
 
 class _DomainCategoryCard extends StatelessWidget {
-  const _DomainCategoryCard({
-    required this.title,
-    required this.icon,
-    required this.onTap,
-  });
+  const _DomainCategoryCard({required this.title, required this.icon, required this.onTap});
 
   final String title;
   final IconData icon;
@@ -313,15 +314,11 @@ class _DomainCategoryCard extends StatelessWidget {
         onTap: onTap,
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
-          child: Column(
+          child: Row(
             children: [
               Icon(icon),
-              const SizedBox(height: 8),
-              Text(
-                title,
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.titleSmall,
-              ),
+              const SizedBox(width: 12),
+              Text(title, style: Theme.of(context).textTheme.titleSmall),
             ],
           ),
         ),

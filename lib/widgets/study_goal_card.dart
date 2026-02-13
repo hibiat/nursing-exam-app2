@@ -4,7 +4,7 @@ import '../constants/encouragement_messages.dart';
 import '../services/user_score_service.dart';
 import '../utils/user_friendly_error_messages.dart';
 
-/// 女子看護学生向けのトーンで、AIおすすめ学習をわかりやすく提示するカード
+/// AIおすすめ学習を提示するカード
 class StudyGoalCard extends StatelessWidget {
   const StudyGoalCard({
     super.key,
@@ -86,16 +86,16 @@ class _StudyGoalCardContent extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFFFFEEF6), Color(0xFFFFF8EC)],
+        gradient: LinearGradient(
+          colors: [theme.colorScheme.primaryContainer, theme.colorScheme.secondaryContainer],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFFFD5E8), width: 1.4),
-        boxShadow: const [
+        border: Border.all(color: theme.colorScheme.outlineVariant, width: 1.2),
+        boxShadow: [
           BoxShadow(
-            color: Color(0x1AB76E93),
+            color: theme.colorScheme.shadow.withOpacity(0.1),
             blurRadius: 12,
             offset: Offset(0, 4),
           ),
@@ -112,7 +112,7 @@ class _StudyGoalCardContent extends StatelessWidget {
                   width: 46,
                   height: 46,
                   decoration: BoxDecoration(
-                    color: const Color(0xFFF17CB0),
+                    color: theme.colorScheme.primary,
                     borderRadius: BorderRadius.circular(14),
                   ),
                   child: const Icon(Icons.auto_awesome, color: Colors.white),
@@ -126,14 +126,14 @@ class _StudyGoalCardContent extends StatelessWidget {
                         'AIおすすめ学習',
                         style: theme.textTheme.titleMedium?.copyWith(
                           fontWeight: FontWeight.w700,
-                          color: const Color(0xFFBA4D82),
+                          color: theme.colorScheme.onPrimaryContainer,
                         ),
                       ),
                       const SizedBox(height: 2),
                       Text(
                         data.encouragement,
                         style: theme.textTheme.bodySmall?.copyWith(
-                          color: const Color(0xFF8A6A7A),
+                          color: theme.colorScheme.onSurfaceVariant,
                         ),
                       ),
                     ],
@@ -146,14 +146,14 @@ class _StudyGoalCardContent extends StatelessWidget {
               width: double.infinity,
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.82),
+                color: theme.colorScheme.surface.withOpacity(0.9),
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: const Color(0xFFFFD9E9)),
+                border: Border.all(color: theme.colorScheme.outlineVariant),
               ),
               child: Text(
                 data.subTitle,
                 style: theme.textTheme.bodyMedium?.copyWith(
-                  color: const Color(0xFF5D4A55),
+                  color: theme.colorScheme.onSurface,
                 ),
               ),
             ),
@@ -164,8 +164,6 @@ class _StudyGoalCardContent extends StatelessWidget {
                 onPressed: () => onStartStudy(data.mode),
                 style: FilledButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 14),
-                  backgroundColor: const Color(0xFFE56AA3),
-                  foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(14),
                   ),

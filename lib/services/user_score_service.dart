@@ -22,25 +22,25 @@ class UserScoreService {
     try {
       final domains = await _taxonomyService.loadDomains('assets/taxonomy_required.json');
       if (domains.isEmpty) {
-        return 40.0;
+        return 0.0;
       }
 
       final skillIds = domains.first.subdomains.map((s) => s.id).toList();
       final skillStates = await _skillStateRepository.fetchSkillStates(skillIds);
 
       final scores = skillIds.map((id) {
-        final theta = skillStates[id]?.theta ?? 0.0;
+        final theta = skillStates[id]?.theta ?? -8.0;
         return _scoreEngine.thetaToRequiredScore(theta);
       }).toList();
 
       if (scores.isEmpty) {
-        return 40.0;
+        return 0.0;
       }
 
       return scores.reduce((a, b) => a + b) / scores.length;
     } catch (e) {
       print('UserScoreService.calculateRequiredScore error: $e');
-      return 40.0;
+      return 0.0;
     }
   }
 
@@ -49,25 +49,25 @@ class UserScoreService {
     try {
       final domains = await _taxonomyService.loadDomains('assets/taxonomy_general.json');
       if (domains.isEmpty) {
-        return 162.5;
+        return 0.0;
       }
 
       final skillIds = domains.map((d) => d.id).toList();
       final skillStates = await _skillStateRepository.fetchSkillStates(skillIds);
 
       final scores = skillIds.map((id) {
-        final theta = skillStates[id]?.theta ?? 0.0;
+        final theta = skillStates[id]?.theta ?? -8.0;
         return _scoreEngine.thetaToGeneralScore(theta);
       }).toList();
 
       if (scores.isEmpty) {
-        return 162.5;
+        return 0.0;
       }
 
       return scores.reduce((a, b) => a + b) / scores.length;
     } catch (e) {
       print('UserScoreService.calculateGeneralScore error: $e');
-      return 162.5;
+      return 0.0;
     }
   }
 
@@ -118,7 +118,7 @@ class UserScoreService {
       bool isRequired = false;
 
       for (final id in requiredSkillIds) {
-        final theta = skillStates[id]?.theta ?? 0.0;
+        final theta = skillStates[id]?.theta ?? -8.0;
         final score = _scoreEngine.thetaToRequiredScore(theta);
         if (score < lowestScore) {
           lowestScore = score;
@@ -128,7 +128,7 @@ class UserScoreService {
       }
 
       for (final id in generalSkillIds) {
-        final theta = skillStates[id]?.theta ?? 0.0;
+        final theta = skillStates[id]?.theta ?? -8.0;
         final score = _scoreEngine.thetaToGeneralScore(theta);
         final normalizedScore = score / 5;
         if (normalizedScore < lowestScore) {

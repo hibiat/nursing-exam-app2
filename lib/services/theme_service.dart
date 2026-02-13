@@ -9,7 +9,7 @@ class ThemeService extends ChangeNotifier {
       : _repository = repository ?? UserSettingsRepository();
 
   final UserSettingsRepository _repository;
-  AppTheme _currentTheme = AppTheme.cute;
+  AppTheme _currentTheme = AppTheme.light;
 
   AppTheme get currentTheme => _currentTheme;
 
@@ -27,10 +27,20 @@ class ThemeService extends ChangeNotifier {
   ThemeData get themeData => _buildTheme(_currentTheme);
 
   ThemeData _buildTheme(AppTheme theme) {
-    final seedColor = theme.primaryColor;
-    final colorScheme = theme == AppTheme.dark
-        ? ColorScheme.fromSeed(seedColor: seedColor, brightness: Brightness.dark)
-        : ColorScheme.fromSeed(seedColor: seedColor);
+    final colorScheme = switch (theme) {
+      AppTheme.light => ColorScheme.fromSeed(
+          seedColor: const Color(0xFFE26AA5),
+          brightness: Brightness.light,
+        ),
+      AppTheme.neutral => ColorScheme.fromSeed(
+          seedColor: const Color(0xFF5B7B6E),
+          brightness: Brightness.light,
+        ),
+      AppTheme.dark => ColorScheme.fromSeed(
+          seedColor: const Color(0xFF263238),
+          brightness: Brightness.dark,
+        ),
+    };
 
     return ThemeData(
       colorScheme: colorScheme,

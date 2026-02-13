@@ -5,7 +5,7 @@ class UserSettings {
   const UserSettings({
     required this.timeLimitSeconds,
     this.showTimer = false,
-    this.theme = AppTheme.cute,
+    this.theme = AppTheme.light,
   });
 
   final int timeLimitSeconds;

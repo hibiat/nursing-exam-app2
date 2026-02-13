@@ -11,6 +11,7 @@ class OnboardingExamScreen extends StatefulWidget {
 
 class _OnboardingExamScreenState extends State<OnboardingExamScreen> {
   late final OnboardingExamController controller;
+  final Set<int> _selectedChoices = <int>{};
 
   @override
   void initState() {
@@ -30,6 +31,16 @@ class _OnboardingExamScreenState extends State<OnboardingExamScreen> {
   void _onUpdate() {
     if (mounted) {
       setState(() {});
+    }
+  }
+
+  void _submitCurrent() {
+    final question = controller.currentQuestion;
+    if (question == null) return;
+    if (question.answer.type == 'multiple') {
+      controller.submitAnswer(userAnswer: _selectedChoices.toList(), isSkip: false);
+      _selectedChoices.clear();
+      return;
     }
   }
 
@@ -108,23 +119,47 @@ class _OnboardingExamScreenState extends State<OnboardingExamScreen> {
           ...question.choices.map(
             (choice) => Padding(
               padding: const EdgeInsets.only(bottom: 12),
-              child: OutlinedButton(
-                onPressed: () => controller.submitAnswer(
-                  userAnswer: choice.index,
-                  isSkip: false,
-                ),
-                style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
-                ),
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(choice.text), 
-                ),
-              ),
+              child: question.answer.type == 'multiple'
+                  ? CheckboxListTile(
+                      value: _selectedChoices.contains(choice.index),
+                      title: Text(choice.text),
+                      onChanged: (value) {
+                        setState(() {
+                          if (value == true) {
+                            _selectedChoices.add(choice.index);
+                          } else {
+                            _selectedChoices.remove(choice.index);
+                          }
+                        });
+                      },
+                    )
+                  : OutlinedButton(
+                      onPressed: () => controller.submitAnswer(
+                        userAnswer: choice.index,
+                        isSkip: false,
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+                      ),
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(choice.text),
+                      ),
+                    ),
             ),
           ),
+          if (question.answer.type == 'multiple')
+            FilledButton(
+              onPressed: _selectedChoices.isEmpty ? null : _submitCurrent,
+              child: const Text('この回答で次へ'),
+            ),
+          if (question.answer.type == 'multiple')
+            const SizedBox(height: 8),
           TextButton(
-            onPressed: () => controller.submitAnswer(userAnswer: null, isSkip: true),
+            onPressed: () {
+              _selectedChoices.clear();
+              controller.submitAnswer(userAnswer: null, isSkip: true);
+            },
             child: const Text('わからない（スキップ）'),
           ),
         ],

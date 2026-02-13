@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
 
 enum AppTheme {
-  cute('可愛い', Color(0xFFE91E63)),
-  cool('クール', Color(0xFF2196F3)),
+  light('ライト（かわいい）', Color(0xFFE26AA5)),
   neutral('ナチュラル', Color(0xFF795548)),
-  warm('あたたかい', Color(0xFFFF9800)),
   dark('ダーク', Color(0xFF263238));
 
   const AppTheme(this.displayName, this.primaryColor);
@@ -13,9 +11,12 @@ enum AppTheme {
   final Color primaryColor;
 
   static AppTheme fromStorage(String? raw) {
+    if (raw == 'cute' || raw == 'cool' || raw == 'warm') {
+      return AppTheme.light;
+    }
     return AppTheme.values.firstWhere(
       (theme) => theme.name == raw,
-      orElse: () => AppTheme.cute,
+      orElse: () => AppTheme.light,
     );
   }
 }
