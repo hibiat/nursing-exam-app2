@@ -55,6 +55,28 @@ class Attempt {
     };
   }
 
+  /// Firestore データから Attempt を復元するファクトリメソッド
+  factory Attempt.fromFirestore(String id, Map<String, dynamic> data) {
+    return Attempt(
+      id: id,
+      questionId: data['questionId'] as String,
+      mode: data['mode'] as String,
+      domainId: data['domainId'] as String,
+      subdomainId: data['subdomainId'] as String,
+      answerType: data['answerType'] as String,
+      chosenSingle: data['chosenSingle'] as int?,
+      chosenMultiple: (data['chosenMultiple'] as List<dynamic>?)?.cast<int>(),
+      chosenNumeric: data['chosenNumeric'] as int?,
+      isCorrect: data['isCorrect'] as bool,
+      isSkip: data['isSkip'] as bool,
+      confidence: data['confidence'] as String?,
+      responseTimeMs: data['responseTimeMs'] as int,
+      timeExpired: data['timeExpired'] as bool,
+      answeredAt: (data['answeredAt'] as dynamic).toDate(),
+      difficulty: (data['difficulty'] as num).toDouble(),
+    );
+  }
+
   /// userAnswerからAttemptを作成するファクトリメソッド
   factory Attempt.fromAnswer({
     required String id,

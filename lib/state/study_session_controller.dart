@@ -16,6 +16,7 @@ import '../services/auth_service.dart';
 import '../services/question_set_service.dart';
 import '../services/scheduler.dart';
 import '../models/score_engine.dart';
+import '../services/score_snapshot_service.dart';
 import '../services/taxonomy_service.dart';
 
 class StudySessionController extends ChangeNotifier {
@@ -30,11 +31,13 @@ class StudySessionController extends ChangeNotifier {
     SkillStateRepository? skillStateRepository,
     QuestionSetService? questionSetService,
     StreakStateRepository? streakStateRepository,
+    ScoreSnapshotService? scoreSnapshotService,
   })  : attemptRepository = attemptRepository ?? AttemptRepository(),
         questionStateRepository = questionStateRepository ?? QuestionStateRepository(),
         skillStateRepository = skillStateRepository ?? SkillStateRepository(),
         questionSetService = questionSetService ?? QuestionSetService(),
-        streakStateRepository = streakStateRepository ?? StreakStateRepository();
+        streakStateRepository = streakStateRepository ?? StreakStateRepository(),
+        scoreSnapshotService = scoreSnapshotService ?? ScoreSnapshotService();
 
   final String mode;
   final String domainId;
@@ -46,6 +49,7 @@ class StudySessionController extends ChangeNotifier {
   final SkillStateRepository skillStateRepository;
   final QuestionSetService questionSetService;
   final StreakStateRepository streakStateRepository;
+  final ScoreSnapshotService scoreSnapshotService;
   final Scheduler scheduler = const Scheduler();
   final ScoreEngine scoreEngine = ScoreEngine();
   final TaxonomyService taxonomyService = TaxonomyService();
@@ -342,12 +346,16 @@ class StudySessionController extends ChangeNotifier {
         lastUnitCompletedAt!.year != now.year ||
         lastUnitCompletedAt!.month != now.month ||
         lastUnitCompletedAt!.day != now.day;
+
     if (isFirstToday) {
       final updatedStreak = _calculateStreak(now);
       streakCount = updatedStreak.currentStreak;
       await streakStateRepository.saveStreakState(updatedStreak);
       lastUnitCompletedAt = updatedStreak.lastUnitCompletedAt;
       lastStudyDate = updatedStreak.lastStudyDate;
+
+      // スコアスナップショットを保存（1日1回のみ）
+      await scoreSnapshotService.saveCurrentScoreSnapshot();
     }
 
     _refreshSkillProgressSnapshot();

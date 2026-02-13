@@ -8,6 +8,7 @@ import '../utils/user_friendly_error_messages.dart';
 import '../widgets/passing_prediction_card.dart';
 import '../widgets/source_attribution_section.dart';
 import '../widgets/study_goal_card.dart';
+import 'learning_record_screen.dart';
 import 'onboarding_exam_screen.dart';
 import 'select_screen.dart';
 import 'settings_screen.dart';
@@ -114,6 +115,49 @@ class _HomeScreenState extends State<HomeScreen> {
             },
           ),
         ),
+        // 分野を選んで学習
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '分野を選んで学習',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: () => _openSelectScreen('required'),
+                        icon: const Icon(Icons.local_hospital, size: 20),
+                        label: const Text('必修'),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: () => _openSelectScreen('general'),
+                        icon: const Icon(Icons.menu_book, size: 20),
+                        label: const Text('一般・状況'),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
       ],
     );
   }
@@ -122,12 +166,37 @@ class _HomeScreenState extends State<HomeScreen> {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
+        // AIおすすめ学習セクション
+        Text(
+          'AIおすすめ学習',
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 8),
         FilledButton.icon(
           onPressed: _startOnboardingExam,
           icon: const Icon(Icons.play_circle_outline),
           label: const Text('ショート模試を開始'),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 8),
+        StudyGoalCard(
+          onStartStudy: (mode) {
+            Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => StudyScreen.recommended(mode: mode)),
+            );
+          },
+        ),
+        const SizedBox(height: 24),
+
+        // 分野を選んで学習セクション
+        Text(
+          '分野を選んで学習',
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 8),
         _DomainCategoryCard(
           title: '必修問題',
           icon: Icons.local_hospital,
@@ -147,6 +216,22 @@ class _HomeScreenState extends State<HomeScreen> {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
+        Card(
+          child: ListTile(
+            leading: const Icon(Icons.bar_chart),
+            title: const Text('学習記録'),
+            subtitle: const Text('学習時間、問題数、履歴を確認'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const LearningRecordScreen(),
+                ),
+              );
+            },
+          ),
+        ),
+        const SizedBox(height: 12),
         Card(
           child: ListTile(
             leading: const Icon(Icons.settings),

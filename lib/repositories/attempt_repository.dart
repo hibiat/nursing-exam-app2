@@ -23,4 +23,32 @@ class AttemptRepository {
         .collection('attempts')
         .add(attempt.toFirestore());
   }
+
+  /// 指定期間のAttemptを取得
+  Future<List<Attempt>> fetchAttemptsByDateRange(
+    DateTime start,
+    DateTime end, {
+    int? limit,
+  }) async {
+    final user = _auth.currentUser;
+    if (user == null) return [];
+
+    var query = _firestore
+        .collection('users')
+        .doc(user.uid)
+        .collection('attempts')
+        .where('answeredAt', isGreaterThanOrEqualTo: start)
+        .where('answeredAt', isLessThan: end)
+        .orderBy('answeredAt', descending: true);
+
+    if (limit != null) {
+      query = query.limit(limit);
+    }
+
+    final snapshot = await query.get();
+
+    return snapshot.docs
+        .map((doc) => Attempt.fromFirestore(doc.id, doc.data()))
+        .toList();
+  }
 }

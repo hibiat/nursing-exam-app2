@@ -302,12 +302,14 @@ class _QuestionAnswerWidgetState extends State<QuestionAnswerWidget> {
           ),
         ),
         const SizedBox(height: 24),
-        
+
         // マークシート形式の数値入力（ボタン式）
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
             // 各桁の入力
             ...List.generate(digits, (digitIndex) {
               return Row(
@@ -332,6 +334,7 @@ class _QuestionAnswerWidgetState extends State<QuestionAnswerWidget> {
             }),
           ],
         ),
+      ),
       ],
     );
   }
