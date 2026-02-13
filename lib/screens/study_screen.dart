@@ -289,7 +289,7 @@ class _StudyScreenState extends State<StudyScreen> {
                       if (question.source?.type == 'past_exam') ...[
                         const SizedBox(height: 8),
                         Text(
-                          '※過去問題を参考に改題した学習用問題です。詳細な出典は「その他 > 出典・著作権」をご確認ください。',
+                          '詳細な出典は「その他 > 出典・著作権」をご確認ください。',
                           style: Theme.of(context).textTheme.bodySmall?.copyWith(
                                 color: Theme.of(context).colorScheme.onSurfaceVariant,
                               ),
