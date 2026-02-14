@@ -14,6 +14,7 @@ import '../repositories/skill_state_repository.dart';
 import '../repositories/streak_state_repository.dart';
 import '../services/auth_service.dart';
 import '../services/question_set_service.dart';
+import '../services/review_scheduler.dart';
 import '../services/scheduler.dart';
 import '../models/score_engine.dart';
 import '../services/score_snapshot_service.dart';
@@ -26,6 +27,7 @@ class StudySessionController extends ChangeNotifier {
     required this.subdomainId,
     required this.unitTarget,
     this.isRecommendedMode = false,
+    this.isReviewMode = false,
     AttemptRepository? attemptRepository,
     QuestionStateRepository? questionStateRepository,
     SkillStateRepository? skillStateRepository,
@@ -37,13 +39,15 @@ class StudySessionController extends ChangeNotifier {
         skillStateRepository = skillStateRepository ?? SkillStateRepository(),
         questionSetService = questionSetService ?? QuestionSetService(),
         streakStateRepository = streakStateRepository ?? StreakStateRepository(),
-        scoreSnapshotService = scoreSnapshotService ?? ScoreSnapshotService();
+        scoreSnapshotService = scoreSnapshotService ?? ScoreSnapshotService(),
+        reviewScheduler = const ReviewScheduler();
 
   final String mode;
   final String domainId;
   final String subdomainId;
   final int unitTarget;
   final bool isRecommendedMode;
+  final bool isReviewMode;
   final AttemptRepository attemptRepository;
   final QuestionStateRepository questionStateRepository;
   final SkillStateRepository skillStateRepository;
@@ -51,11 +55,13 @@ class StudySessionController extends ChangeNotifier {
   final StreakStateRepository streakStateRepository;
   final ScoreSnapshotService scoreSnapshotService;
   final Scheduler scheduler = const Scheduler();
+  final ReviewScheduler reviewScheduler;
   final ScoreEngine scoreEngine = ScoreEngine();
   final TaxonomyService taxonomyService = TaxonomyService();
 
   final Map<String, QuestionState> questionStates = {};
   final Map<String, SkillState> skillStates = {};
+  final Map<String, Attempt> lastAttempts = {}; // 復習モード用：全期間の解答履歴
   final Set<String> answeredQuestionIds = {};
   final Set<String> completedCaseIds = {};
   final Map<String, String> skillLabels = {};
@@ -90,11 +96,11 @@ class StudySessionController extends ChangeNotifier {
     loadError = null;
     notifyListeners();
     try {
-      final user = await AuthService.ensureSignedIn();
-      print('StudySessionController.start signed in uid=${user.uid}');
-      print('🔥 Firebase読み込み開始: mode=$mode');
+      final user = AuthService.currentUser;
+      if (user == null) {
+        throw Exception('ログインが必要です');
+      }
       final loaded = await questionSetService.loadActiveQuestions(mode: mode);
-      print('🔥 Firebase読み込み結果: ${loaded.length}問');
 
       if (loaded.isEmpty) {
         throw Exception(
@@ -107,7 +113,6 @@ class StudySessionController extends ChangeNotifier {
       }
 
       _questions = _filterQuestions(loaded);
-      print('🔥 フィルタリング後: ${_questions.length}問');
 
       if (_questions.isEmpty) {
         throw Exception(
@@ -122,6 +127,13 @@ class StudySessionController extends ChangeNotifier {
       await _loadSkillStates();
       await _loadQuestionStates();
       await _loadStreakState();
+
+      // 復習モードの場合、全期間の解答履歴を読み込む
+      if (isReviewMode) {
+        await _loadLastAttempts();
+        await _initializeMissingStatesForReview();
+      }
+
       _snapshotSkillScores();
       _refreshSkillProgressSnapshot();
       _refreshOverallScore();
@@ -133,6 +145,61 @@ class StudySessionController extends ChangeNotifier {
     isLoading = false;
     _pickNextQuestion();
     notifyListeners();
+  }
+
+  /// 復習モード用：全期間の解答履歴を読み込む
+  Future<void> _loadLastAttempts() async {
+    // 十分に古い日付から現在まで
+    final attempts = await attemptRepository.fetchAttemptsByDateRange(
+      DateTime(2020, 1, 1),
+      DateTime.now(),
+    );
+
+    lastAttempts.clear();
+    for (final attempt in attempts) {
+      // 各問題の最新の解答のみを保持
+      final existing = lastAttempts[attempt.questionId];
+      if (existing == null || attempt.answeredAt.isAfter(existing.answeredAt)) {
+        lastAttempts[attempt.questionId] = attempt;
+      }
+    }
+  }
+
+  /// 復習モード用：AttemptがあるのにquestionStateがない問題の状態を初期化
+  Future<void> _initializeMissingStatesForReview() async {
+    print('🔧 Initializing missing states for review mode...');
+    final now = DateTime.now();
+    int initializedCount = 0;
+
+    for (final entry in lastAttempts.entries) {
+      final questionId = entry.key;
+      final lastAttempt = entry.value;
+
+      // すでにquestionStateが存在する場合はスキップ
+      if (questionStates.containsKey(questionId)) continue;
+
+      // 対応するQuestionを探す
+      final question = _questions.firstWhere(
+        (q) => q.id == questionId,
+        orElse: () => _questions.first,
+      );
+
+      // デフォルトのQuestionStateを作成
+      final defaultState = QuestionState(
+        questionId: questionId,
+        mode: question.mode,
+        domainId: question.domainId,
+        dueAt: now, // すぐに復習可能
+        stability: 2.0, // デフォルト値
+        lapses: lastAttempt.isCorrect ? 0 : 1, // 最新が不正解ならlapses=1
+        lastSeenAt: lastAttempt.answeredAt,
+      );
+
+      questionStates[questionId] = defaultState;
+      initializedCount++;
+    }
+
+    print('🔧 Initialized $initializedCount missing states');
   }
 
   Future<void> submitAnswer({
@@ -195,24 +262,28 @@ class StudySessionController extends ChangeNotifier {
       await questionStateRepository.saveQuestionState(updatedState);
 
       // Attemptを作成して保存
-      await attemptRepository.saveAttempt(
-        Attempt.fromAnswer(
-          id: '${DateTime.now().millisecondsSinceEpoch}_${question.id}',
-          questionId: question.id,
-          mode: question.mode,
-          domainId: question.domainId,
-          subdomainId: question.subdomainId,
-          answerType: question.answer.type,
-          userAnswer: userAnswer,
-          isCorrect: isCorrect,
-          isSkip: isSkip,
-          confidence: confidence,
-          responseTimeMs: responseTimeMs,
-          timeExpired: timeExpired,
-          answeredAt: now,
-          difficulty: question.difficulty,
-        ),
+      final newAttempt = Attempt.fromAnswer(
+        id: '${DateTime.now().millisecondsSinceEpoch}_${question.id}',
+        questionId: question.id,
+        mode: question.mode,
+        domainId: question.domainId,
+        subdomainId: question.subdomainId,
+        answerType: question.answer.type,
+        userAnswer: userAnswer,
+        isCorrect: isCorrect,
+        isSkip: isSkip,
+        confidence: confidence,
+        responseTimeMs: responseTimeMs,
+        timeExpired: timeExpired,
+        answeredAt: now,
+        difficulty: question.difficulty,
       );
+      await attemptRepository.saveAttempt(newAttempt);
+
+      // 復習モードの場合、lastAttemptsを更新
+      if (isReviewMode) {
+        lastAttempts[question.id] = newAttempt;
+      }
 
       await _updateUnitProgress(question);
       _refreshOverallScore();
@@ -230,12 +301,10 @@ class StudySessionController extends ChangeNotifier {
 
 
   void advanceToNextQuestion() {
-    print('📍 advanceToNextQuestion開始');
-    print('📍 現在の問題ID: $currentQuestionId');
-    _pickNextQuestion();
-    print('📍 次の問題ID: $currentQuestionId');
+    print('🔍 advanceToNextQuestion: currentId=$currentQuestionId, isReviewMode=$isReviewMode');
+    _pickNextQuestion(previousId: currentQuestionId);
+    print('🔍 after _pickNextQuestion: nextId=$currentQuestionId');
     notifyListeners();
-    print('📍 notifyListeners呼び出し完了');
   }
 
   void _pickNextQuestion({String? previousId}) {
@@ -243,49 +312,84 @@ class StudySessionController extends ChangeNotifier {
       currentQuestionId = null;
       return;
     }
-    final nextId = scheduler.selectNextQuestion(
-      candidates: _questions,
-      questionStates: questionStates,
-      skillStates: skillStates,
-      now: DateTime.now(),
-      skillScopeResolver: _skillScopeId,
-    );
+
+    String? nextId;
+
+    if (isReviewMode) {
+      print('🔍 ReviewMode: candidates=${_questions.length}, states=${questionStates.length}, attempts=${lastAttempts.length}');
+
+      // デバッグ: lapses > 0 の問題をカウント
+      int lapsesCount = 0;
+      int bothExistCount = 0;
+      for (final q in _questions) {
+        final state = questionStates[q.id];
+        final attempt = lastAttempts[q.id];
+        if (state != null && state.lapses > 0) {
+          lapsesCount++;
+          if (attempt != null) bothExistCount++;
+        }
+      }
+      print('🔍 lapsesCount=$lapsesCount, bothExist=$bothExistCount, previousId=$previousId');
+
+      // 復習モード：ReviewSchedulerを使用
+      nextId = reviewScheduler.selectReviewQuestion(
+        candidates: _questions,
+        questionStates: questionStates,
+        lastAttempts: lastAttempts,
+        now: DateTime.now(),
+      );
+      print('🔍 ReviewScheduler returned: $nextId');
+    } else {
+      // 通常モード：Schedulerを使用
+      nextId = scheduler.selectNextQuestion(
+        candidates: _questions,
+        questionStates: questionStates,
+        skillStates: skillStates,
+        now: DateTime.now(),
+        skillScopeResolver: _skillScopeId,
+      );
+    }
+
     if (previousId != null && nextId == previousId && _questions.length > 1) {
       final remaining = _questions.where((q) => q.id != previousId).toList();
-      currentQuestionId = scheduler.selectNextQuestion(
-            candidates: remaining,
-            questionStates: questionStates,
-            skillStates: skillStates,
-            now: DateTime.now(),
-            skillScopeResolver: _skillScopeId,
-          ) ??
-          nextId;
+
+      if (isReviewMode) {
+        final retryId = reviewScheduler.selectReviewQuestion(
+          candidates: remaining,
+          questionStates: questionStates,
+          lastAttempts: lastAttempts,
+          now: DateTime.now(),
+        );
+        // 再試行でも見つからない場合は、最初から選び直す
+        currentQuestionId = retryId ?? reviewScheduler.selectReviewQuestion(
+          candidates: _questions,
+          questionStates: questionStates,
+          lastAttempts: lastAttempts,
+          now: DateTime.now(),
+        ) ?? nextId;
+      } else {
+        currentQuestionId = scheduler.selectNextQuestion(
+              candidates: remaining,
+              questionStates: questionStates,
+              skillStates: skillStates,
+              now: DateTime.now(),
+              skillScopeResolver: _skillScopeId,
+            ) ??
+            nextId;
+      }
       return;
     }
     currentQuestionId = nextId ?? (_questions.isNotEmpty ? _questions.first.id : null);
   }
 
   List<Question> _filterQuestions(List<Question> source) {
-    print('=== _filterQuestions DEBUG ===');
-    print('mode: $mode');
-    print('domainId: $domainId');
-    print('subdomainId: $subdomainId');
-    print('isRecommendedMode: $isRecommendedMode');
-    print('source count: ${source.length}');
-
     if (isRecommendedMode) {
-      print('🎯 おすすめモード: 全問題から出題');
-      final filtered = source.where((q) => q.mode == mode).toList();
-      print('filtered count: ${filtered.length}');
-      return filtered;
+      return source.where((q) => q.mode == mode).toList();
     }
-    final filtered = source
+    return source
         .where((question) => domainId == 'all' || question.domainId == domainId)
         .where((question) => subdomainId == 'all' || question.subdomainId == subdomainId)
         .toList();
-
-    print('filtered count: ${filtered.length}');
-    return filtered;
   }
 
   QuestionState _updateQuestionState({

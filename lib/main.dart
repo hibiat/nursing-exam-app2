@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 
 import 'firebase_options.dart';
 import 'screens/home_screen.dart';
+import 'screens/login_screen.dart';
+import 'services/auth_service.dart';
 import 'services/firebase_service.dart';
 import 'services/theme_service.dart';
 
@@ -68,7 +70,26 @@ class BootstrapScreen extends StatelessWidget {
             body: Center(child: CircularProgressIndicator()),
           );
         }
-        return HomeScreen(themeService: themeService);
+
+        // 認証状態を監視
+        return StreamBuilder<dynamic>(
+          stream: AuthService.authStateChanges,
+          builder: (context, authSnapshot) {
+            if (authSnapshot.connectionState == ConnectionState.waiting) {
+              return const Scaffold(
+                body: Center(child: CircularProgressIndicator()),
+              );
+            }
+
+            // 未ログイン → LoginScreen
+            if (authSnapshot.data == null) {
+              return const LoginScreen();
+            }
+
+            // ログイン済み → HomeScreen
+            return HomeScreen(themeService: themeService);
+          },
+        );
       },
     );
   }

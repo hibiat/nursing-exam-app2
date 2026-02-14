@@ -14,15 +14,24 @@ class StudyStatsRepository {
   /// 指定期間の日別統計を集計
   Future<List<DailyStudyStats>> aggregateDailyStats(
     DateTime start,
-    DateTime end,
-  ) async {
+    DateTime end, {
+    String? modeFilter, // 'all', 'required', 'general', null
+  }) async {
     final attempts = await _attemptRepository.fetchAttemptsByDateRange(start, end);
 
     if (attempts.isEmpty) return [];
 
+    // モードフィルタ適用
+    List<Attempt> filteredAttempts = attempts;
+    if (modeFilter != null && modeFilter != 'all') {
+      filteredAttempts = attempts.where((a) => a.mode == modeFilter).toList();
+    }
+
+    if (filteredAttempts.isEmpty) return [];
+
     // 日付をキーにグループ化
     final Map<String, List<Attempt>> groupedByDate = {};
-    for (final attempt in attempts) {
+    for (final attempt in filteredAttempts) {
       final dateKey = DateFormat('yyyy-MM-dd').format(attempt.answeredAt);
       groupedByDate.putIfAbsent(dateKey, () => []).add(attempt);
     }
@@ -190,5 +199,33 @@ class StudyStatsRepository {
     final weekday = date.weekday; // 1 = Monday, 7 = Sunday
     return DateTime(date.year, date.month, date.day)
         .subtract(Duration(days: weekday - 1));
+  }
+
+  /// 復習対象問題数を取得
+  Future<int> getReviewCandidateCount({String? mode}) async {
+    // 全期間の解答履歴を取得
+    final attempts = await _attemptRepository.fetchAttemptsByDateRange(
+      DateTime(2020, 1, 1),
+      DateTime.now(),
+    );
+
+    if (attempts.isEmpty) return 0;
+
+    // モードでフィルタ
+    final filteredAttempts = mode != null
+        ? attempts.where((a) => a.mode == mode).toList()
+        : attempts;
+
+    // 問題IDごとに最新の解答のみを保持
+    final Map<String, Attempt> lastAttempts = {};
+    for (final attempt in filteredAttempts) {
+      final existing = lastAttempts[attempt.questionId];
+      if (existing == null || attempt.answeredAt.isAfter(existing.answeredAt)) {
+        lastAttempts[attempt.questionId] = attempt;
+      }
+    }
+
+    // 最新の解答が不正解の問題数をカウント
+    return lastAttempts.values.where((attempt) => !attempt.isCorrect).length;
   }
 }

@@ -105,7 +105,7 @@ class _SelectScreenState extends State<SelectScreen> {
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 8),
                   child: _DomainCard(
-                    title: '必修問題（全16領域）',
+                    title: '全領域',
                     subtitle: '全領域からバランスよく出題',
                     reviewCount: 0,
                     icon: Icons.auto_awesome,

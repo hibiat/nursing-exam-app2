@@ -287,113 +287,297 @@ class _AttemptDetailCard extends StatelessWidget {
     final isCorrect = attempt.isCorrect;
 
     return Card(
-      margin: const EdgeInsets.only(bottom: 8),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                // 問題番号
-                Container(
-                  width: 32,
-                  height: 32,
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.surfaceVariant,
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Center(
-                    child: Text(
-                      questionNumber.toString(),
-                      style: theme.textTheme.labelLarge?.copyWith(
-                        fontWeight: FontWeight.bold,
+      margin: const EdgeInsets.only(bottom: 6),
+      child: InkWell(
+        onTap: () {
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => _AttemptDetailFullScreen(
+                attempt: attempt,
+                questionNumber: questionNumber,
+                question: question,
+              ),
+            ),
+          );
+        },
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  // 問題番号
+                  Container(
+                    width: 28,
+                    height: 28,
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.surfaceContainerHighest,
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Center(
+                      child: Text(
+                        questionNumber.toString(),
+                        style: theme.textTheme.labelMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
                   ),
-                ),
-                const SizedBox(width: 12),
+                  const SizedBox(width: 12),
 
-                // 正誤マーク
-                Icon(
-                  isCorrect ? Icons.check_circle : Icons.cancel,
-                  color: isCorrect
-                      ? theme.colorScheme.primary
-                      : theme.colorScheme.error,
-                  size: 24,
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  isCorrect ? '正解' : '不正解',
-                  style: theme.textTheme.titleSmall?.copyWith(
+                  // 正誤マーク
+                  Icon(
+                    isCorrect ? Icons.check_circle : Icons.cancel,
                     color: isCorrect
                         ? theme.colorScheme.primary
                         : theme.colorScheme.error,
-                    fontWeight: FontWeight.bold,
+                    size: 20,
                   ),
-                ),
-                const Spacer(),
+                ],
+              ),
+              const SizedBox(height: 8),
 
-                // 解答時間
-                Row(
+              // 問題文プレビュー
+              if (question != null) ...[
+                Text(
+                  question!.stem,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ] else ...[
+                Text(
+                  '問題ID: ${attempt.questionId}',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 解答詳細の全画面表示
+class _AttemptDetailFullScreen extends StatelessWidget {
+  const _AttemptDetailFullScreen({
+    required this.attempt,
+    required this.questionNumber,
+    this.question,
+  });
+
+  final Attempt attempt;
+  final int questionNumber;
+  final Question? question;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isCorrect = attempt.isCorrect;
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('問題 $questionNumber'),
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // 正誤結果
+            Card(
+              color: isCorrect
+                  ? theme.colorScheme.primaryContainer
+                  : theme.colorScheme.errorContainer,
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
                   children: [
                     Icon(
-                      Icons.timer_outlined,
-                      size: 16,
-                      color: theme.colorScheme.onSurfaceVariant,
+                      isCorrect ? Icons.check_circle : Icons.cancel,
+                      color: isCorrect
+                          ? theme.colorScheme.onPrimaryContainer
+                          : theme.colorScheme.onErrorContainer,
+                      size: 32,
                     ),
-                    const SizedBox(width: 4),
+                    const SizedBox(width: 12),
                     Text(
-                      '${(attempt.responseTimeMs / 1000).round()}秒',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
+                      isCorrect ? '正解' : '不正解',
+                      style: theme.textTheme.titleLarge?.copyWith(
+                        color: isCorrect
+                            ? theme.colorScheme.onPrimaryContainer
+                            : theme.colorScheme.onErrorContainer,
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
                   ],
                 ),
-              ],
+              ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 24),
 
             // 問題文
+            Text(
+              '問題文',
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 8),
             if (question != null) ...[
               Container(
-                padding: const EdgeInsets.all(12),
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
-                  borderRadius: BorderRadius.circular(8),
+                  color: theme.colorScheme.surfaceContainerHighest,
+                  borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
                   question!.stem,
-                  style: theme.textTheme.bodyMedium,
+                  style: theme.textTheme.bodyLarge,
                 ),
               ),
-              const SizedBox(height: 8),
             ] else ...[
               Text(
                 '問題ID: ${attempt.questionId}',
-                style: theme.textTheme.bodySmall?.copyWith(
+                style: theme.textTheme.bodyMedium?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
               ),
-              const SizedBox(height: 8),
             ],
+            const SizedBox(height: 24),
 
-            // 解答内容
-            if (attempt.isSkip) ...[
-              const SizedBox(height: 4),
+            // 選択肢
+            if (question != null && question!.choices.isNotEmpty) ...[
               Text(
-                'スキップ',
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: theme.colorScheme.error,
-                  fontStyle: FontStyle.italic,
+                '選択肢',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
                 ),
               ),
-            ] else ...[
-              const SizedBox(height: 4),
+              const SizedBox(height: 8),
+              ...question!.choices.map((choice) {
+                final isUserChoice = _isUserChoice(choice.index, attempt);
+                final isCorrectChoice = _isCorrectChoice(choice.index, question!);
+
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 8),
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: isCorrectChoice
+                          ? theme.colorScheme.primary
+                          : (isUserChoice && !isCorrect
+                              ? theme.colorScheme.error
+                              : theme.colorScheme.outlineVariant),
+                      width: isCorrectChoice || (isUserChoice && !isCorrect) ? 2 : 1,
+                    ),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // 選択肢番号
+                      Container(
+                        width: 32,
+                        height: 32,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: isCorrectChoice
+                                ? theme.colorScheme.primary
+                                : (isUserChoice && !isCorrect
+                                    ? theme.colorScheme.error
+                                    : theme.colorScheme.outlineVariant),
+                            width: 2.5,
+                          ),
+                          color: isCorrectChoice
+                              ? theme.colorScheme.primaryContainer
+                              : (isUserChoice && !isCorrect
+                                  ? theme.colorScheme.errorContainer
+                                  : theme.colorScheme.surfaceContainerHighest),
+                          boxShadow: isCorrectChoice || (isUserChoice && !isCorrect)
+                              ? [
+                                  BoxShadow(
+                                    color: (isCorrectChoice
+                                            ? theme.colorScheme.primary
+                                            : theme.colorScheme.error)
+                                        .withValues(alpha: 0.3),
+                                    blurRadius: 4,
+                                    offset: const Offset(0, 2),
+                                  )
+                                ]
+                              : null,
+                        ),
+                        child: Center(
+                          child: Text(
+                            '${choice.index}',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: isCorrectChoice
+                                  ? theme.colorScheme.onPrimaryContainer
+                                  : (isUserChoice && !isCorrect
+                                      ? theme.colorScheme.onErrorContainer
+                                      : theme.colorScheme.onSurfaceVariant),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      // 選択肢テキスト
+                      Expanded(
+                        child: Text(
+                          choice.text,
+                          style: theme.textTheme.bodyLarge,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }),
+              const SizedBox(height: 24),
+            ],
+
+            // あなたの解答
+            Text(
+              'あなたの解答',
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 8),
+            _buildAnswerDisplay(
+              context: context,
+              attempt: attempt,
+              question: question,
+              isUserAnswer: true,
+              isCorrect: isCorrect,
+            ),
+            const SizedBox(height: 24),
+
+            // 正解
+            if (question != null && !isCorrect) ...[
               Text(
-                '解答: ${_formatAnswer(attempt)}',
-                style: theme.textTheme.bodyMedium,
+                '正解',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 8),
+              _buildCorrectAnswerDisplay(
+                context: context,
+                question: question!,
               ),
             ],
           ],
@@ -402,14 +586,329 @@ class _AttemptDetailCard extends StatelessWidget {
     );
   }
 
-  String _formatAnswer(Attempt attempt) {
+  String _formatUserAnswer(Attempt attempt, Question? question) {
+    if (attempt.isSkip) {
+      return 'スキップ';
+    }
+
+    if (question == null) {
+      if (attempt.chosenSingle != null) {
+        return '選択肢 ${attempt.chosenSingle}';
+      } else if (attempt.chosenMultiple != null && attempt.chosenMultiple!.isNotEmpty) {
+        return '選択肢 ${attempt.chosenMultiple!.join(', ')}';
+      } else if (attempt.chosenNumeric != null) {
+        return '${attempt.chosenNumeric}';
+      }
+      return '未回答';
+    }
+
+    // 選択肢のテキストを表示
     if (attempt.chosenSingle != null) {
-      return '選択肢 ${attempt.chosenSingle}';
+      final choice = question.choices.firstWhere(
+        (c) => c.index == attempt.chosenSingle,
+        orElse: () => question.choices.first,
+      );
+      return '${choice.index}. ${choice.text}';
     } else if (attempt.chosenMultiple != null && attempt.chosenMultiple!.isNotEmpty) {
-      return '選択肢 ${attempt.chosenMultiple!.join(', ')}';
+      final texts = attempt.chosenMultiple!.map((idx) {
+        final choice = question.choices.firstWhere(
+          (c) => c.index == idx,
+          orElse: () => question.choices.first,
+        );
+        return '${choice.index}. ${choice.text}';
+      }).join('\n');
+      return texts;
     } else if (attempt.chosenNumeric != null) {
       return '${attempt.chosenNumeric}';
     }
     return '未回答';
+  }
+
+  String _formatCorrectAnswer(Question question) {
+    // 単一選択の場合
+    if (question.answer.value != null) {
+      final choice = question.choices.firstWhere(
+        (c) => c.index == question.answer.value,
+        orElse: () => question.choices.first,
+      );
+      return '${choice.index}. ${choice.text}';
+    }
+
+    // 複数選択の場合
+    if (question.answer.values != null && question.answer.values!.isNotEmpty) {
+      final texts = question.answer.values!.map((idx) {
+        final choice = question.choices.firstWhere(
+          (c) => c.index == idx,
+          orElse: () => question.choices.first,
+        );
+        return '${choice.index}. ${choice.text}';
+      }).join('\n');
+      return texts;
+    }
+
+    return '正解情報なし';
+  }
+
+  bool _isUserChoice(int choiceIndex, Attempt attempt) {
+    if (attempt.chosenSingle != null) {
+      return attempt.chosenSingle == choiceIndex;
+    }
+    if (attempt.chosenMultiple != null) {
+      return attempt.chosenMultiple!.contains(choiceIndex);
+    }
+    return false;
+  }
+
+  bool _isCorrectChoice(int choiceIndex, Question question) {
+    if (question.answer.value != null) {
+      return question.answer.value == choiceIndex;
+    }
+    if (question.answer.values != null) {
+      return question.answer.values!.contains(choiceIndex);
+    }
+    return false;
+  }
+
+  /// ユーザーの解答を視覚的に表示
+  Widget _buildAnswerDisplay({
+    required BuildContext context,
+    required Attempt attempt,
+    required Question? question,
+    required bool isUserAnswer,
+    required bool isCorrect,
+  }) {
+    final theme = Theme.of(context);
+
+    if (attempt.isSkip) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: theme.colorScheme.outlineVariant,
+            width: 2,
+          ),
+        ),
+        child: Text(
+          'スキップ',
+          style: theme.textTheme.bodyLarge,
+        ),
+      );
+    }
+
+    if (question == null) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isCorrect ? theme.colorScheme.primary : theme.colorScheme.error,
+            width: 2,
+          ),
+        ),
+        child: Text(
+          _formatUserAnswer(attempt, question),
+          style: theme.textTheme.bodyLarge,
+        ),
+      );
+    }
+
+    // 選択肢をバッジ形式で表示
+    List<int> choiceIndices = [];
+    if (attempt.chosenSingle != null) {
+      choiceIndices = [attempt.chosenSingle!];
+    } else if (attempt.chosenMultiple != null && attempt.chosenMultiple!.isNotEmpty) {
+      choiceIndices = attempt.chosenMultiple!;
+    }
+
+    if (choiceIndices.isEmpty) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: theme.colorScheme.outlineVariant,
+            width: 2,
+          ),
+        ),
+        child: Text(
+          '未回答',
+          style: theme.textTheme.bodyLarge,
+        ),
+      );
+    }
+
+    return Column(
+      children: choiceIndices.map((choiceIdx) {
+        final choice = question.choices.firstWhere(
+          (c) => c.index == choiceIdx,
+          orElse: () => question.choices.first,
+        );
+
+        return Container(
+          width: double.infinity,
+          margin: const EdgeInsets.only(bottom: 8),
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: theme.colorScheme.surfaceContainerHighest,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: isCorrect ? theme.colorScheme.primary : theme.colorScheme.error,
+              width: 2,
+            ),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // 選択肢番号バッジ
+              Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: isCorrect ? theme.colorScheme.primary : theme.colorScheme.error,
+                    width: 2.5,
+                  ),
+                  color: isCorrect
+                      ? theme.colorScheme.primaryContainer
+                      : theme.colorScheme.errorContainer,
+                  boxShadow: [
+                    BoxShadow(
+                      color: (isCorrect ? theme.colorScheme.primary : theme.colorScheme.error)
+                          .withValues(alpha: 0.3),
+                      blurRadius: 4,
+                      offset: const Offset(0, 2),
+                    )
+                  ],
+                ),
+                child: Center(
+                  child: Text(
+                    '${choice.index}',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: isCorrect
+                          ? theme.colorScheme.onPrimaryContainer
+                          : theme.colorScheme.onErrorContainer,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 16),
+              // 選択肢テキスト
+              Expanded(
+                child: Text(
+                  choice.text,
+                  style: theme.textTheme.bodyLarge,
+                ),
+              ),
+            ],
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  /// 正解を視覚的に表示
+  Widget _buildCorrectAnswerDisplay({
+    required BuildContext context,
+    required Question question,
+  }) {
+    final theme = Theme.of(context);
+
+    List<int> correctIndices = [];
+    if (question.answer.value != null) {
+      correctIndices = [question.answer.value!];
+    } else if (question.answer.values != null && question.answer.values!.isNotEmpty) {
+      correctIndices = question.answer.values!;
+    }
+
+    if (correctIndices.isEmpty) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.primaryContainer,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Text(
+          '正解情報なし',
+          style: theme.textTheme.bodyLarge?.copyWith(
+            color: theme.colorScheme.onPrimaryContainer,
+          ),
+        ),
+      );
+    }
+
+    return Column(
+      children: correctIndices.map((choiceIdx) {
+        final choice = question.choices.firstWhere(
+          (c) => c.index == choiceIdx,
+          orElse: () => question.choices.first,
+        );
+
+        return Container(
+          width: double.infinity,
+          margin: const EdgeInsets.only(bottom: 8),
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: theme.colorScheme.primaryContainer,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // 選択肢番号バッジ
+              Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: theme.colorScheme.primary,
+                    width: 2.5,
+                  ),
+                  color: theme.colorScheme.primary,
+                  boxShadow: [
+                    BoxShadow(
+                      color: theme.colorScheme.primary.withValues(alpha: 0.3),
+                      blurRadius: 4,
+                      offset: const Offset(0, 2),
+                    )
+                  ],
+                ),
+                child: Center(
+                  child: Text(
+                    '${choice.index}',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 16),
+              // 選択肢テキスト
+              Expanded(
+                child: Text(
+                  choice.text,
+                  style: theme.textTheme.bodyLarge?.copyWith(
+                    color: theme.colorScheme.onPrimaryContainer,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      }).toList(),
+    );
   }
 }

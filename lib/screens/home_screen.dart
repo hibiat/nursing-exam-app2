@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/user_profile.dart';
+import '../repositories/study_stats_repository.dart';
 import '../repositories/user_profile_repository.dart';
 import '../services/auth_service.dart';
 import '../services/theme_service.dart';
@@ -26,9 +27,11 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   late Future<void> _authFuture;
   final UserProfileRepository userProfileRepository = UserProfileRepository();
+  final StudyStatsRepository _statsRepository = StudyStatsRepository();
   UserProfile? _profile;
   bool _onboardingDialogShown = false;
   int _selectedTab = 0;
+  Key _homeTabKey = UniqueKey(); // データ更新時にホームタブを再構築するためのキー
 
   @override
   void initState() {
@@ -37,9 +40,11 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _initAuth() async {
-    final user = await AuthService.ensureSignedIn();
+    final user = AuthService.currentUser;
+    if (user != null) {
+      print('Signed in uid=${user.uid}');
+    }
     _profile = await userProfileRepository.fetchProfile();
-    print('Signed in uid=${user.uid}');
   }
 
   void _retryAuth() {
@@ -79,6 +84,7 @@ class _HomeScreenState extends State<HomeScreen> {
             children: [
               _buildHomeTab(),
               _buildStudyTab(),
+              _buildRecordTab(),
               _buildOtherTab(),
             ],
           ),
@@ -88,6 +94,7 @@ class _HomeScreenState extends State<HomeScreen> {
             destinations: const [
               NavigationDestination(icon: Icon(Icons.home_outlined), selectedIcon: Icon(Icons.home), label: 'ホーム'),
               NavigationDestination(icon: Icon(Icons.school_outlined), selectedIcon: Icon(Icons.school), label: '学習'),
+              NavigationDestination(icon: Icon(Icons.bar_chart_outlined), selectedIcon: Icon(Icons.bar_chart), label: '記録'),
               NavigationDestination(icon: Icon(Icons.more_horiz), selectedIcon: Icon(Icons.more_horiz), label: 'その他'),
             ],
           ),
@@ -98,6 +105,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildHomeTab() {
     return CustomScrollView(
+      key: _homeTabKey,
       slivers: [
         SliverToBoxAdapter(
           child: _MainActionCard(
@@ -105,7 +113,7 @@ class _HomeScreenState extends State<HomeScreen> {
             onStartOnboarding: _startOnboardingExam,
           ),
         ),
-        const SliverToBoxAdapter(child: PassingPredictionCard()),
+        SliverToBoxAdapter(child: PassingPredictionCard(key: ValueKey(_homeTabKey))),
         SliverToBoxAdapter(
           child: StudyGoalCard(
             onStartStudy: (mode) {
@@ -153,6 +161,26 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ),
                   ],
+                ),
+                const SizedBox(height: 16),
+                // 復習モードボタン
+                Text(
+                  '間違えた問題に絞って学習',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: () => _startReviewMode(context),
+                    icon: const Icon(Icons.replay, size: 20),
+                    label: const Text('間違えた問題を復習する'),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                  ),
                 ),
               ],
             ),
@@ -208,8 +236,32 @@ class _HomeScreenState extends State<HomeScreen> {
           icon: Icons.menu_book,
           onTap: () => _openSelectScreen('general'),
         ),
+        const SizedBox(height: 16),
+        // 復習モードボタン
+        Text(
+          '間違えた問題に絞って学習',
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 8),
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton.icon(
+            onPressed: () => _startReviewMode(context),
+            icon: const Icon(Icons.replay, size: 20),
+            label: const Text('間違えた問題を復習する'),
+            style: OutlinedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+            ),
+          ),
+        ),
       ],
     );
+  }
+
+  Widget _buildRecordTab() {
+    return const LearningRecordScreen(isEmbedded: true);
   }
 
   Widget _buildOtherTab() {
@@ -218,26 +270,10 @@ class _HomeScreenState extends State<HomeScreen> {
       children: [
         Card(
           child: ListTile(
-            leading: const Icon(Icons.bar_chart),
-            title: const Text('学習記録'),
-            subtitle: const Text('学習時間、問題数、履歴を確認'),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => const LearningRecordScreen(),
-                ),
-              );
-            },
-          ),
-        ),
-        const SizedBox(height: 12),
-        Card(
-          child: ListTile(
             leading: const Icon(Icons.settings),
             title: const Text('設定'),
             onTap: () async {
-              await Navigator.of(context).push(
+              final wasReset = await Navigator.of(context).push<bool>(
                 MaterialPageRoute(builder: (_) => SettingsScreen(themeService: widget.themeService)),
               );
               final updatedProfile = await userProfileRepository.fetchProfile();
@@ -245,7 +281,45 @@ class _HomeScreenState extends State<HomeScreen> {
               setState(() {
                 _profile = updatedProfile;
                 _onboardingDialogShown = false;
+                // 学習履歴がリセットされた場合、ホームタブを再構築
+                if (wasReset == true) {
+                  _homeTabKey = UniqueKey();
+                }
               });
+            },
+          ),
+        ),
+        const SizedBox(height: 12),
+        Card(
+          child: ListTile(
+            leading: Icon(Icons.logout, color: Theme.of(context).colorScheme.error),
+            title: Text(
+              'ログアウト',
+              style: TextStyle(color: Theme.of(context).colorScheme.error),
+            ),
+            onTap: () async {
+              final shouldLogout = await showDialog<bool>(
+                context: context,
+                builder: (context) => AlertDialog(
+                  title: const Text('ログアウト'),
+                  content: const Text('本当にログアウトしますか？'),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.of(context).pop(false),
+                      child: const Text('キャンセル'),
+                    ),
+                    FilledButton(
+                      onPressed: () => Navigator.of(context).pop(true),
+                      child: const Text('ログアウト'),
+                    ),
+                  ],
+                ),
+              );
+
+              if (shouldLogout == true) {
+                await AuthService.signOut();
+                // 認証状態が変わるとStreamBuilderが自動的にLoginScreenに戻る
+              }
             },
           ),
         ),
@@ -264,6 +338,108 @@ class _HomeScreenState extends State<HomeScreen> {
     Navigator.of(context).push(
       MaterialPageRoute(builder: (_) => SelectScreen(mode: mode)),
     );
+  }
+
+  /// 復習モードを開始
+  Future<void> _startReviewMode(BuildContext context) async {
+    // 各モードの復習対象数を取得
+    final requiredCount = await _statsRepository.getReviewCandidateCount(mode: 'required');
+    final generalCount = await _statsRepository.getReviewCandidateCount(mode: 'general');
+    final totalCount = requiredCount + generalCount;
+
+    if (totalCount == 0) {
+      if (!mounted) return;
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('復習する問題がありません'),
+          content: const Text('間違えた問題がないか、すでに復習済みです。'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('閉じる'),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+
+    if (!mounted) return;
+    final mode = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('復習する問題の種類を選択'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              enabled: requiredCount > 0,
+              leading: Icon(
+                Icons.local_hospital,
+                color: requiredCount > 0
+                    ? Theme.of(context).colorScheme.error
+                    : Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.38),
+              ),
+              title: Text(
+                '必修問題',
+                style: TextStyle(
+                  color: requiredCount > 0
+                      ? null
+                      : Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.38),
+                ),
+              ),
+              trailing: Text(
+                '$requiredCount問',
+                style: TextStyle(
+                  color: requiredCount > 0
+                      ? Theme.of(context).colorScheme.error
+                      : Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.38),
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              onTap: requiredCount > 0 ? () => Navigator.pop(context, 'required') : null,
+            ),
+            ListTile(
+              enabled: generalCount > 0,
+              leading: Icon(
+                Icons.menu_book,
+                color: generalCount > 0
+                    ? Theme.of(context).colorScheme.primary
+                    : Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.38),
+              ),
+              title: Text(
+                '一般・状況設定',
+                style: TextStyle(
+                  color: generalCount > 0
+                      ? null
+                      : Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.38),
+                ),
+              ),
+              trailing: Text(
+                '$generalCount問',
+                style: TextStyle(
+                  color: generalCount > 0
+                      ? Theme.of(context).colorScheme.primary
+                      : Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.38),
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              onTap: generalCount > 0 ? () => Navigator.pop(context, 'general') : null,
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (mode != null && mounted) {
+      await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => StudyScreen.review(mode: mode),
+        ),
+      );
+    }
   }
 
   void _maybeShowOnboardingDialog() {
@@ -322,6 +498,14 @@ class _HomeScreenState extends State<HomeScreen> {
     final updatedProfile = await userProfileRepository.fetchProfile();
     setState(() {
       _profile = updatedProfile;
+      _homeTabKey = UniqueKey(); // ホームタブを再構築してスコアを更新
+    });
+  }
+
+  /// ホームタブをリフレッシュ（学習履歴リセット後などに使用）
+  void refreshHomeTab() {
+    setState(() {
+      _homeTabKey = UniqueKey();
     });
   }
 }

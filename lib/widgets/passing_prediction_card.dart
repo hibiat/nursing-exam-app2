@@ -8,7 +8,7 @@ import '../utils/user_friendly_error_messages.dart';
 
 /// 合格予測を表示するカード
 class PassingPredictionCard extends StatelessWidget {
-  const PassingPredictionCard({super.key});
+  const PassingPredictionCard({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -222,10 +222,10 @@ class _ScoreChip extends StatelessWidget {
           child: Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
+              color: color.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
-                color: color.withOpacity(0.3),
+                color: color.withValues(alpha: 0.3),
                 width: 2,
               ),
             ),
@@ -274,13 +274,13 @@ class _ScoreChip extends StatelessWidget {
                     ),
                   ),
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  'タップで分野別',
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: AppColors.textSecondary,
-                  ),
-                ),
+                //const SizedBox(height: 4),
+                //Text(
+                //  'タップで分野別ランク',
+                //  style: theme.textTheme.labelSmall?.copyWith(
+                //    color: AppColors.textSecondary,
+                //  ),
+                //),
               ],
             ),
           ),

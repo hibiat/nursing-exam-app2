@@ -106,6 +106,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('学習履歴をリセットしました')),
     );
+
+    // 設定画面を閉じてホーム画面に戻り、データをリフレッシュ
+    Navigator.of(context).pop(true);
   }
 
   @override

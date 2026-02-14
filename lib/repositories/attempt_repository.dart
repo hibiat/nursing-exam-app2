@@ -31,7 +31,9 @@ class AttemptRepository {
     int? limit,
   }) async {
     final user = _auth.currentUser;
-    if (user == null) return [];
+    if (user == null) {
+      return [];
+    }
 
     var query = _firestore
         .collection('users')

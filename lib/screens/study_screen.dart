@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../models/question.dart';
 import '../repositories/user_settings_repository.dart';
+import '../services/user_score_service.dart';
 import '../state/study_session_controller.dart';
 import '../widgets/question_answer_widget.dart';
 import '../widgets/question_source_badge.dart';
@@ -16,19 +17,30 @@ class StudyScreen extends StatefulWidget {
     required this.mode,
     required this.domainId,
     required this.subdomainId,
-  }) : isRecommendedMode = false;
+  })  : isRecommendedMode = false,
+        isReviewMode = false;
 
   const StudyScreen.recommended({
     super.key,
     required this.mode,
   })  : domainId = 'all',
         subdomainId = 'all',
-        isRecommendedMode = true;
+        isRecommendedMode = true,
+        isReviewMode = false;
+
+  const StudyScreen.review({
+    super.key,
+    required this.mode,
+  })  : domainId = 'all',
+        subdomainId = 'all',
+        isRecommendedMode = false,
+        isReviewMode = true;
 
   final String mode;
   final String domainId;
   final String subdomainId;
   final bool isRecommendedMode;
+  final bool isReviewMode;
 
   @override
   State<StudyScreen> createState() => _StudyScreenState();
@@ -64,6 +76,7 @@ class _StudyScreenState extends State<StudyScreen> {
       subdomainId: widget.subdomainId,
       unitTarget: 5,
       isRecommendedMode: widget.isRecommendedMode,
+      isReviewMode: widget.isReviewMode,
     );
     controller.addListener(_onUpdate);
     _initFuture = _initialize();
@@ -176,15 +189,41 @@ class _StudyScreenState extends State<StudyScreen> {
     );
 
     if (shouldFinish == true && mounted) {
+      // ホーム画面と同じ総合ランクを取得（全スキルの平均）
+      final userScoreService = UserScoreService();
+      final predictionData = await userScoreService.getPredictionData();
+
+      print('🎯 Rank Debug:');
+      print('  mode: ${widget.mode}');
+      print('  requiredScore: ${predictionData.requiredScore}');
+      print('  requiredRank: ${predictionData.requiredRank}');
+      print('  generalScore: ${predictionData.generalScore}');
+      print('  generalRank: ${predictionData.generalRank}');
+      print('  controller.overallRank: ${controller.overallRank}');
+      print('  controller.overallScore: ${controller.overallScore}');
+
+      // 学習モードに応じて適切なランクを取得
+      final currentRank = widget.mode == 'required'
+          ? predictionData.requiredRank
+          : predictionData.generalRank;
+
+      print('  -> currentRank: $currentRank');
+
+      // 学習開始前のランクは controller から取得
+      final previousRank = controller.lastOverallRank;
+
+      // スコア変化は controller から取得（学習したスキルのスコア変化）
+      final scoreDelta = controller.overallScore - controller.lastOverallScore;
+
       await Navigator.of(context).pushReplacement(
         MaterialPageRoute(
           builder: (_) => StudySummaryScreen(
             questionsAnswered: _totalAnswered,
             correctCount: _correctCount,
             skillProgress: controller.latestSkillProgress,
-            rank: controller.overallRank,
-            lastRank: controller.lastOverallRank,
-            overallScoreDelta: controller.overallScore - controller.lastOverallScore,
+            rank: currentRank,
+            lastRank: previousRank,
+            overallScoreDelta: scoreDelta,
           ),
         ),
       );
@@ -247,7 +286,9 @@ class _StudyScreenState extends State<StudyScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.mode == 'required' ? '必修' : '一般・状況設定'),
+        title: Text(widget.isReviewMode
+          ? '復習モード（${widget.mode == 'required' ? '必修' : '一般'}）'
+          : (widget.mode == 'required' ? '必修' : '一般・状況設定')),
         actions: [
           TextButton.icon(
             onPressed: _showFinishConfirmDialog,
@@ -286,15 +327,6 @@ class _StudyScreenState extends State<StudyScreen> {
                         question.stem,
                         style: Theme.of(context).textTheme.titleLarge,
                       ),
-                      if (question.source?.type == 'past_exam') ...[
-                        const SizedBox(height: 8),
-                        Text(
-                          '詳細な出典は「その他 > 出典・著作権」をご確認ください。',
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: Theme.of(context).colorScheme.onSurfaceVariant,
-                              ),
-                        ),
-                      ],
                     ],
                   ),
                 ),
@@ -356,6 +388,15 @@ class _StudyScreenState extends State<StudyScreen> {
                   ),
                 ],
               ),
+              if (question.source?.type == 'past_exam') ...[
+                const SizedBox(height: 12),
+                Text(
+                  '詳細な出典は「その他 > 出典・著作権」をご確認ください。',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                ),
+              ],
               const SizedBox(height: 12),
               _TimerFooter(
                 timeProgress: timeProgress,
@@ -414,37 +455,21 @@ class _AnswerFeedbackCard extends StatelessWidget {
             ? question.explainShort!
             : '解説は準備中です';
     
-    // 正解の表示
-    String correctAnswerText;
-    switch (question.format) {
-      case 'single_choice':
-        correctAnswerText = '正解: ${question.answer.value}. ${question.getChoiceText(question.answer.value!)}';
-        break;
-      case 'multiple_choice':
-        final indices = question.answer.values ?? [];
-        correctAnswerText = '正解: ${indices.map((i) => '$i. ${question.getChoiceText(i)}').join(', ')}';
-        break;
-      case 'numeric_input':
-        correctAnswerText = '正解: ${question.answer.value}${question.answer.unit ?? ''}';
-        break;
-      default:
-        correctAnswerText = '正解を表示できません';
+    // 正解の選択肢インデックスを取得
+    List<int> correctIndices = [];
+    if (question.format == 'single_choice' && question.answer.value != null) {
+      correctIndices = [question.answer.value!];
+    } else if (question.format == 'multiple_choice' && question.answer.values != null) {
+      correctIndices = question.answer.values!;
     }
-    
-    // ユーザーの回答の表示
-    String userAnswerText = '';
+
+    // ユーザーの回答の選択肢インデックスを取得
+    List<int> userIndices = [];
     if (!wasSkip && !timeExpired && userAnswer != null) {
-      switch (question.format) {
-        case 'single_choice':
-          userAnswerText = 'あなたの回答: ${userAnswer}. ${question.getChoiceText(userAnswer as int)}';
-          break;
-        case 'multiple_choice':
-          final indices = userAnswer as List<int>;
-          userAnswerText = 'あなたの回答: ${indices.map((i) => '$i. ${question.getChoiceText(i)}').join(', ')}';
-          break;
-        case 'numeric_input':
-          userAnswerText = 'あなたの回答: $userAnswer${question.answer.unit ?? ''}';
-          break;
+      if (question.format == 'single_choice') {
+        userIndices = [userAnswer as int];
+      } else if (question.format == 'multiple_choice') {
+        userIndices = userAnswer as List<int>;
       }
     }
     
@@ -470,8 +495,58 @@ class _AnswerFeedbackCard extends StatelessWidget {
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
               ),
-            Text(correctAnswerText),
-            if (userAnswerText.isNotEmpty) Text(userAnswerText),
+
+            // ユーザーの回答表示
+            if (!wasSkip && !timeExpired && userAnswer != null) ...[
+              const SizedBox(height: 8),
+              Text(
+                'あなたの回答',
+                style: theme.textTheme.labelMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 4),
+              if (question.format == 'numeric_input')
+                Text('$userAnswer${question.answer.unit ?? ''}', style: theme.textTheme.bodyLarge)
+              else
+                ...userIndices.map((idx) => _buildChoiceBadge(
+                  context: context,
+                  choiceIndex: idx,
+                  choiceText: question.getChoiceText(idx),
+                  isCorrect: isCorrect,
+                  isUserAnswer: true,
+                )),
+            ],
+
+            // 正解表示（不正解の場合のみ）
+            if (!isCorrect) ...[
+              const SizedBox(height: 8),
+              Text(
+                '正解',
+                style: theme.textTheme.labelMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: theme.colorScheme.primary,
+                ),
+              ),
+              const SizedBox(height: 4),
+              if (question.format == 'numeric_input')
+                Text(
+                  '${question.answer.value}${question.answer.unit ?? ''}',
+                  style: theme.textTheme.bodyLarge?.copyWith(
+                    color: theme.colorScheme.primary,
+                    fontWeight: FontWeight.bold,
+                  ),
+                )
+              else
+                ...correctIndices.map((idx) => _buildChoiceBadge(
+                  context: context,
+                  choiceIndex: idx,
+                  choiceText: question.getChoiceText(idx),
+                  isCorrect: true,
+                  isUserAnswer: false,
+                )),
+            ],
+
             const SizedBox(height: 12),
             Text(
               explanationText,
@@ -479,6 +554,64 @@ class _AnswerFeedbackCard extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  /// 選択肢をバッジ形式で表示するヘルパー
+  Widget _buildChoiceBadge({
+    required BuildContext context,
+    required int choiceIndex,
+    required String choiceText,
+    required bool isCorrect,
+    required bool isUserAnswer,
+  }) {
+    final theme = Theme.of(context);
+    final badgeColor = isCorrect
+        ? theme.colorScheme.primary
+        : theme.colorScheme.error;
+    final containerColor = isCorrect
+        ? theme.colorScheme.primaryContainer
+        : theme.colorScheme.errorContainer;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 4),
+      child: Row(
+        children: [
+          // 選択肢番号バッジ
+          Container(
+            width: 28,
+            height: 28,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: badgeColor,
+                width: 2,
+              ),
+              color: containerColor,
+            ),
+            child: Center(
+              child: Text(
+                '$choiceIndex',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: isCorrect
+                      ? theme.colorScheme.onPrimaryContainer
+                      : theme.colorScheme.onErrorContainer,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          // 選択肢テキスト
+          Expanded(
+            child: Text(
+              choiceText,
+              style: theme.textTheme.bodyMedium,
+            ),
+          ),
+        ],
       ),
     );
   }

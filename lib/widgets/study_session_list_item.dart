@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../models/study_session.dart';
+import '../repositories/attempt_repository.dart';
+import '../services/question_set_service.dart';
 import '../screens/study_session_detail_screen.dart';
 
 /// 学習セッションリストアイテム
@@ -22,10 +24,10 @@ class StudySessionListItem extends StatelessWidget {
         : 0;
 
     // モードの表示名
-    final modeLabel = session.mode == 'required' ? '必修' : '一般・状況設定';
+    final modeLabel = session.mode == 'required' ? '必修' : '一般';
 
     return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       child: InkWell(
         onTap: () {
           Navigator.of(context).push(
@@ -36,26 +38,26 @@ class StudySessionListItem extends StatelessWidget {
         },
         borderRadius: BorderRadius.circular(12),
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(12),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // 1行目: 日時 + モード + 正答率
               Row(
                 children: [
                   // 日時
-                  Expanded(
-                    child: Text(
-                      dateFormat.format(session.startedAt),
-                      style: theme.textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
+                  Text(
+                    dateFormat.format(session.startedAt),
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
+                  const SizedBox(width: 8),
                   // モードバッジ
                   Container(
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
+                      horizontal: 6,
+                      vertical: 2,
                     ),
                     decoration: BoxDecoration(
                       color: session.mode == 'required'
@@ -70,97 +72,115 @@ class StudySessionListItem extends StatelessWidget {
                             ? theme.colorScheme.onErrorContainer
                             : theme.colorScheme.onPrimaryContainer,
                         fontWeight: FontWeight.bold,
+                        fontSize: 11,
                       ),
                     ),
                   ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              // 統計情報
-              Row(
-                children: [
-                  // 問題数
-                  _StatItem(
-                    icon: Icons.quiz_outlined,
-                    label: '${session.totalCount}問',
-                    theme: theme,
-                  ),
-                  const SizedBox(width: 16),
-                  // 正答率
-                  _StatItem(
-                    icon: Icons.check_circle_outline,
-                    label: '正答率 $accuracy%',
+                  const SizedBox(width: 8),
+                  // 正答率アイコン
+                  Icon(
+                    Icons.check_circle,
+                    size: 16,
                     color: accuracy >= 70
                         ? theme.colorScheme.primary
                         : theme.colorScheme.error,
-                    theme: theme,
+                  ),
+                  const SizedBox(width: 4),
+                  // 正答率
+                  Text(
+                    '$accuracy%',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: accuracy >= 70
+                          ? theme.colorScheme.primary
+                          : theme.colorScheme.error,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ],
               ),
-              if (session.categoryName != null) ...[
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Icon(
-                      Icons.folder_outlined,
-                      size: 16,
+              const SizedBox(height: 8),
+              // 2行目: 問題文プレビュー
+              FutureBuilder<String?>(
+                future: _fetchFirstQuestionText(),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return Text(
+                      '読み込み中...',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    );
+                  }
+
+                  final questionText = snapshot.data;
+                  if (questionText == null || questionText.isEmpty) {
+                    return Text(
+                      'セッションID: ${session.startedAt.millisecondsSinceEpoch}',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    );
+                  }
+
+                  return Text(
+                    questionText,
+                    style: theme.textTheme.bodySmall?.copyWith(
                       color: theme.colorScheme.onSurfaceVariant,
                     ),
-                    const SizedBox(width: 4),
-                    Expanded(
-                      child: Text(
-                        session.categoryName!,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  );
+                },
+              ),
             ],
           ),
         ),
       ),
     );
   }
-}
 
-class _StatItem extends StatelessWidget {
-  const _StatItem({
-    required this.icon,
-    required this.label,
-    required this.theme,
-    this.color,
-  });
+  /// 最初の問題の問題文を取得
+  Future<String?> _fetchFirstQuestionText() async {
+    try {
+      // セッション開始時刻の前後で最初のAttemptを取得
+      final repository = AttemptRepository();
+      final start = session.startedAt.subtract(const Duration(minutes: 1));
+      final end = session.startedAt.add(const Duration(minutes: 15));
 
-  final IconData icon;
-  final String label;
-  final ThemeData theme;
-  final Color? color;
+      final attempts = await repository.fetchAttemptsByDateRange(
+        start,
+        end,
+        limit: 1,
+      );
 
-  @override
-  Widget build(BuildContext context) {
-    final displayColor = color ?? theme.colorScheme.onSurfaceVariant;
+      if (attempts.isEmpty) return null;
 
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(
-          icon,
-          size: 18,
-          color: displayColor,
-        ),
-        const SizedBox(width: 4),
-        Text(
-          label,
-          style: theme.textTheme.bodyMedium?.copyWith(
-            color: displayColor,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-      ],
-    );
+      final firstAttempt = attempts.first;
+
+      // 問題を取得
+      final questionService = QuestionSetService();
+      final setId = await questionService.loadActiveSetIdForMode(session.mode);
+
+      if (setId == null) return null;
+
+      final storagePath = 'question_sets/$setId/${session.mode}.jsonl';
+      final questions = await questionService.loadQuestionsFromStorage(storagePath);
+
+      // 問題IDでマッチする問題を探す
+      try {
+        final question = questions.firstWhere(
+          (q) => q.id == firstAttempt.questionId,
+        );
+        return question.stem.isNotEmpty ? question.stem : null;
+      } catch (e) {
+        return null;
+      }
+    } catch (e) {
+      return null;
+    }
   }
 }

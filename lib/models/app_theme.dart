@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 enum AppTheme {
-  light('ライト（かわいい）', Color(0xFFE26AA5)),
+  light('キュート', Color(0xFFE26AA5)),
   neutral('ナチュラル', Color(0xFF795548)),
   dark('ダーク', Color(0xFF263238));
 

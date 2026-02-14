@@ -103,30 +103,43 @@ class _QuestionAnswerWidgetState extends State<QuestionAnswerWidget> {
               child: Row(
                 children: [
                   Container(
-                    width: 28,
-                    height: 28,
+                    width: 32,
+                    height: 32,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       border: Border.all(
                         color: isSelected
                             ? Theme.of(context).colorScheme.primary
                             : Theme.of(context).colorScheme.outlineVariant,
-                        width: 2,
+                        width: 2.5,
                       ),
                       color: isSelected
                           ? Theme.of(context).colorScheme.primary
-                          : Colors.transparent,
+                          : Theme.of(context).colorScheme.surfaceContainerHighest,
+                      boxShadow: isSelected
+                          ? [
+                              BoxShadow(
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .primary
+                                    .withValues(alpha: 0.3),
+                                blurRadius: 4,
+                                offset: const Offset(0, 2),
+                              ),
+                            ]
+                          : null,
                     ),
                     alignment: Alignment.center,
                     child: Text(
                       '${choice.index}',
                       style: TextStyle(
+                        fontSize: 16,
                         color: isSelected ? Colors.white : null,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 16),
                   Expanded(child: Text(choice.text)),
                 ],
               ),
@@ -208,29 +221,44 @@ class _QuestionAnswerWidgetState extends State<QuestionAnswerWidget> {
                 child: Row(
                   children: [
                     Container(
-                      width: 28,
-                      height: 28,
+                      width: 32,
+                      height: 32,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         border: Border.all(
                           color: isSelected
                               ? Theme.of(context).colorScheme.primary
                               : Theme.of(context).colorScheme.outlineVariant,
-                          width: 2,
+                          width: 2.5,
                         ),
                         color: isSelected
                             ? Theme.of(context).colorScheme.primary
-                            : Colors.transparent,
+                            : Theme.of(context).colorScheme.surfaceContainerHighest,
+                        boxShadow: isSelected
+                            ? [
+                                BoxShadow(
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .primary
+                                      .withValues(alpha: 0.3),
+                                  blurRadius: 4,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ]
+                            : null,
                       ),
                       alignment: Alignment.center,
                       child: isSelected
-                          ? const Icon(Icons.check, color: Colors.white, size: 18)
+                          ? const Icon(Icons.check, color: Colors.white, size: 20)
                           : Text(
                               '${choice.index}',
-                              style: const TextStyle(fontWeight: FontWeight.bold),
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                     ),
-                    const SizedBox(width: 12),
+                    const SizedBox(width: 16),
                     Expanded(child: Text(choice.text)),
                   ],
                 ),
